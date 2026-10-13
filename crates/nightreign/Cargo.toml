@@ -1,0 +1,13 @@
+[package]
+name = "shikifsrs-nightreign"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Checked Nightreign executable and task definition metadata"
+
+[dependencies]
+shikifsrs-runtime = { path = "../runtime" }
+
+[lints]
+workspace = true

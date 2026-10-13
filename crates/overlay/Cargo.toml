@@ -1,0 +1,13 @@
+[package]
+name = "shikifsrs-overlay"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Independent process-lifetime DX12 overlay host for ShikiFSRS consumers"
+
+[target.'cfg(windows)'.dependencies]
+hudhook = { git = "https://github.com/veeenu/hudhook", rev = "53bbf504ecfe925003425bbf3912296ad66ad489", default-features = false, features = ["dx12", "imgui-tables-api"] }
+
+[lints]
+workspace = true

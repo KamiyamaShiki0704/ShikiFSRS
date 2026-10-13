@@ -1,0 +1,27 @@
+[workspace]
+resolver = "3"
+members = ["crates/runtime", "crates/elden-ring", "crates/nightreign", "crates/overlay", "crates/sdk"]
+exclude = [
+    "work/consumers/dynamic_title",
+    "work/consumers/ERCapacityExpansion",
+    "work/consumers/ERCharacterScale",
+    "work/consumers/ERDemonBeast",
+    "work/consumers/ERGparamPreloadPatch",
+    "work/consumers/ERSoundBankLoader",
+    "work/consumers/ERTorrentSkinSlots",
+    "work/consumers/ER_Summon",
+    "work/consumers/keyboard-ex",
+    "work/consumers/nightreign_style_hud",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/KamiyamaShiki0704/ShikiFSRS"
+publish = false
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"

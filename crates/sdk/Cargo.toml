@@ -1,0 +1,15 @@
+[package]
+name = "shikifsrs"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Exact-profile entry point for Elden Ring and Nightreign SDK modules"
+
+[dependencies]
+shikifsrs-runtime = { path = "../runtime" }
+shikifsrs-elden-ring = { path = "../elden-ring" }
+shikifsrs-nightreign = { path = "../nightreign" }
+
+[lints]
+workspace = true

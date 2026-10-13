@@ -1,0 +1,6 @@
+/target/
+/work/
+/docs/
+/Scripts/
+*.md
+!README.md

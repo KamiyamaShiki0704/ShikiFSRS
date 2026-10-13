@@ -1,0 +1,25 @@
+{
+  "executable": {
+    "file_version": "1.3.3.0",
+    "file_size": 118835320,
+    "sha256": "9545e8732919bb6a63904cb73223641b3c4f9a67869be5722612acca413e8b3a"
+  },
+  "task_definitions": {
+    "table_rva": "0x2cdf8e0",
+    "count": 156,
+    "stride": 32,
+    "table_sha256": "20862423fe1274ed14e66c213afca4d8f4930d5352f938a024f9be0c51001cd5",
+    "includes_dummy": true
+  },
+  "initializer_evidence": {
+    "rva": "0xfecd20",
+    "length": 269,
+    "sha256": "d45b71e87d71b501eccba8f02198a84b3208394df9044fcc6d6adbbb2a63ffa7",
+    "scope": "Unwind entry contains a protected continuation; only the first table iteration loop establishes the file table extent.",
+    "loop_rva": "0xfecd41",
+    "loop_end_rva": "0xfecd84",
+    "table_end_rva": "0x2ce0c60"
+  },
+  "source": "Independent static extraction from the identified executable; no live execution.",
+  "runtime_status": "not implemented"
+}

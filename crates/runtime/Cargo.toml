@@ -1,0 +1,13 @@
+[package]
+name = "shikifsrs-runtime"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Independently authored checked memory and executable inspection for ShikiFSRS"
+
+[dependencies]
+sha2 = "=0.11.0"
+
+[lints]
+workspace = true
