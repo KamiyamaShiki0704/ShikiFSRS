@@ -21,5 +21,211 @@
     "table_end_rva": "0x2ce0c60"
   },
   "source": "Independent static extraction from the identified executable; no live execution.",
-  "runtime_status": "not implemented"
+  "runtime_status": "experimental copied object readers; no native calls or in-game validation",
+  "object_types": [
+    {
+      "decorated_name": ".?AVCSTaskGroupImp@CS@@",
+      "table_rva": "0x2cdf868",
+      "locator_rva": "0x33dbef0",
+      "descriptor_rva": "0x3be0de8",
+      "object_offset": 0,
+      "first_function_rva": "0xfec9e0"
+    },
+    {
+      "decorated_name": ".?AVCSTaskGroupIns@CS@@",
+      "table_rva": "0x2ce3fe8",
+      "locator_rva": "0x33dbfe8",
+      "descriptor_rva": "0x3be0e80",
+      "object_offset": 0,
+      "first_function_rva": "0xfed040"
+    },
+    {
+      "decorated_name": ".?AVCSTimeLineTaskGroupIns@CS@@",
+      "table_rva": "0x2ce4038",
+      "locator_rva": "0x33dc150",
+      "descriptor_rva": "0x3be0f08",
+      "object_offset": 0,
+      "first_function_rva": "0xfedd10"
+    },
+    {
+      "decorated_name": ".?AVWorldChrManImp@CS@@",
+      "table_rva": "0x2c1b930",
+      "locator_rva": "0x3320b78",
+      "descriptor_rva": "0x3b59fd8",
+      "object_offset": 0,
+      "first_function_rva": "0x517610"
+    },
+    {
+      "decorated_name": ".?AVChrSet@CS@@",
+      "table_rva": "0x2c15d70",
+      "locator_rva": "0x331d150",
+      "descriptor_rva": "0x3b58478",
+      "object_offset": 0,
+      "first_function_rva": "0x4ac780"
+    },
+    {
+      "decorated_name": ".?AVPlayerIns@CS@@",
+      "table_rva": "0x2c307f8",
+      "locator_rva": "0x3330558",
+      "descriptor_rva": "0x3b58ff8",
+      "object_offset": 0,
+      "first_function_rva": "0x6771b0"
+    },
+    {
+      "decorated_name": ".?AVEnemyIns@CS@@",
+      "table_rva": "0x2c18120",
+      "locator_rva": "0x331f4b0",
+      "descriptor_rva": "0x3b58f98",
+      "object_offset": 0,
+      "first_function_rva": "0x4dc460"
+    },
+    {
+      "decorated_name": ".?AVChrIns@CS@@",
+      "table_rva": "0x2c0ba90",
+      "locator_rva": "0x33167a8",
+      "descriptor_rva": "0x3b541d8",
+      "object_offset": 0,
+      "first_function_rva": "0x3e3a70"
+    },
+    {
+      "decorated_name": ".?AVSoloParamRepositoryImp@CS@@",
+      "table_rva": "0x2cb1e08",
+      "locator_rva": "0x33c76a0",
+      "descriptor_rva": "0x3bd4278",
+      "object_offset": 0,
+      "first_function_rva": "0xea0390"
+    },
+    {
+      "decorated_name": ".?AVParamResCap@CS@@",
+      "table_rva": "0x2cade48",
+      "locator_rva": "0x33c7408",
+      "descriptor_rva": "0x3bd40e8",
+      "object_offset": 0,
+      "first_function_rva": "0xe6a470"
+    }
+  ],
+  "read_code_evidence": [
+    {
+      "rva": "0xfec930",
+      "length": 108,
+      "sha256": "7d8aacfec7c22f768f333e207651c001947f0e3bf7f1252862c59700a2ecea57"
+    },
+    {
+      "rva": "0xfed500",
+      "length": 24,
+      "sha256": "47f312aeabaeac74fb80ecee168b26cca03db0191df6f684f36b413f0a9a9958"
+    },
+    {
+      "rva": "0xfecc80",
+      "length": 32,
+      "sha256": "adb33d2974798c3cd13038004cc22bac5c9c3b0e003e4d97d4f12016da99d25c"
+    },
+    {
+      "rva": "0xfece30",
+      "length": 426,
+      "sha256": "3ddb73863afaa0bc3691e40a91d763c57ebec567418779a47e27d53af1bfbd32"
+    },
+    {
+      "rva": "0xfed160",
+      "length": 248,
+      "sha256": "996b625c6a9d71be66c3a01649c3d814918df0020196c12b94f2ecb1cb96d1a5"
+    },
+    {
+      "rva": "0xfed8d0",
+      "length": 167,
+      "sha256": "a6a295f7e1e7ef0cedde7f697b2b4d4950209049fc0b954887ffd354fec01695"
+    },
+    {
+      "rva": "0x514e9c",
+      "length": 104,
+      "sha256": "23c42e956d881ae8b0fcbd35e8ad7dd528d78677d06537be56b0fdda51040ede"
+    },
+    {
+      "rva": "0x5197e0",
+      "length": 132,
+      "sha256": "aaac6dc986189b739a3ef03c2d1b49ee4db969d11cdde94ff0556c867a9baaed"
+    },
+    {
+      "rva": "0x6df1d6b",
+      "length": 79,
+      "sha256": "10fab50b3fa53691727bd828b400dd0055b0cf9bc02b54258a066c3af244c309"
+    },
+    {
+      "rva": "0x4ac770",
+      "length": 15,
+      "sha256": "c9b2e8398947f433cf329234ed3267c4a8a850d5f05a25a22458acfa8941a9cc"
+    },
+    {
+      "rva": "0x4ac780",
+      "length": 4,
+      "sha256": "74032ad0e931f3c4730df99da43479f9f5315cc898c7c8614278631cb2c16a62"
+    },
+    {
+      "rva": "0x66c6e0",
+      "length": 8,
+      "sha256": "092bffa1dcee8909f7952d864e124525a377e6866b5bf4a5d539de059dd4509d"
+    },
+    {
+      "rva": "0x66c6f0",
+      "length": 40,
+      "sha256": "2cc3f5c5bb497bc22bf3b02249852787993e5a4cea64c502c8b2d3a70078c867"
+    },
+    {
+      "rva": "0xe9e680",
+      "length": 47,
+      "sha256": "512a0dbc0ed69cf7a12a3518b6573aff5826117e08f6c368cca7dfc82aafaf36"
+    },
+    {
+      "rva": "0xe9e910",
+      "length": 101,
+      "sha256": "3b1efce41e706b575f0ec8951e14730d2b10ce911baed296069b5dc26748f693"
+    },
+    {
+      "rva": "0xe9f040",
+      "length": 152,
+      "sha256": "fca034db17b3b881020dedca50168e19e3fa6ef94beb5cf63c344a3445f1d340"
+    }
+  ],
+  "parameter_definitions": {
+    "table_rva": "0x39b3c40",
+    "named_count": 253,
+    "native_fallback_slot": 253,
+    "stride": 16,
+    "table_sha256": "1b3ae70df921184f5d8f589a845a143b430bed2b054f0c73f54ae966228813b0",
+    "physical_order_matches_slot_order": false
+  },
+  "experimental_views": {
+    "task_groups": {
+      "count": 156,
+      "slots_offset": 8,
+      "stride": 8,
+      "name_storage_offset": 24,
+      "name_length_offset": 40,
+      "name_capacity_offset": 48,
+      "seed_offsets": [
+        72,
+        76,
+        80
+      ],
+      "timeline_seed_offset": 120
+    },
+    "world_players": {
+      "pool_offset": 39488,
+      "count_offset": 16,
+      "storage_offset": 24,
+      "slot_stride": 16,
+      "snapshot_limit": 4096
+    },
+    "player_data": {
+      "pointer_offset": 1440,
+      "lookup_key_offset": 8,
+      "key_semantics": "Compared by world player lookup; network/account meaning unverified"
+    },
+    "parameter_caps": {
+      "slot_stride": 72,
+      "count_offset": 128,
+      "cap_offset": 136,
+      "maximum_caps": 8
+    }
+  }
 }

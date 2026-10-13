@@ -11,6 +11,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         file.file().identity().name,
         file.task_definitions().records().len()
     );
+    println!(
+        "{} checked parameter names; experimental object readers available",
+        file.parameter_definitions().len()
+    );
     for name in [
         "FrameBegin",
         "SoundStep",

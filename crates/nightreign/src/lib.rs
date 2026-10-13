@@ -1,7 +1,10 @@
-//! Checked, file-only Nightreign metadata. No live object access or native calls.
+//! Exact-version Nightreign metadata and experimental copied object views.
+pub mod parameters;
+pub mod reader;
 use shikifsrs_runtime::{
     Error, Result,
-    profile::{ExecutableIdentity, VerifiedFile},
+    memory::AddressSpace,
+    profile::{CodeRange, ExecutableIdentity, VerifiedFile},
     task_definitions::TaskDefinitions,
 };
 
@@ -24,6 +27,7 @@ pub const TASK_DEFINITION_COUNT: usize = 156;
 pub struct NightreignFile<'a> {
     file: VerifiedFile<'a>,
     definitions: TaskDefinitions,
+    parameters: Vec<parameters::ParameterDefinition>,
 }
 
 impl<'a> NightreignFile<'a> {
@@ -58,7 +62,13 @@ impl<'a> NightreignFile<'a> {
                 ));
             }
         }
-        Ok(Self { file, definitions })
+        validate_object_metadata(file.image())?;
+        let parameters = parameters::read(file.image())?;
+        Ok(Self {
+            file,
+            definitions,
+            parameters,
+        })
     }
 
     pub fn file(&self) -> &VerifiedFile<'a> {
@@ -68,6 +78,141 @@ impl<'a> NightreignFile<'a> {
     pub fn task_definitions(&self) -> &TaskDefinitions {
         &self.definitions
     }
+
+    pub fn parameter_definitions(&self) -> &[parameters::ParameterDefinition] {
+        &self.parameters
+    }
+
+    /// Checks loaded headers, evidenced code spans and relocated primary vtable slots.
+    /// The provider must supply stable memory for coherent object snapshots. This does
+    /// not discover roots or authorize an engine phase, ownership transfer or calls.
+    pub fn bind_reader<'r, M: AddressSpace>(
+        &'r self,
+        memory: &'r M,
+        base: u64,
+    ) -> Result<reader::NightreignReader<'r, 'a, M>> {
+        let module = self.file.bind(memory, base, READ_CODE)?;
+        for (_, table) in OBJECT_TYPES {
+            let expected = self.file.image().read_rva(*table, 8)?;
+            let pointer = u64::from_le_bytes(expected.try_into().expect("checked width"));
+            let target = pointer
+                .checked_sub(self.file.image().preferred_base)
+                .and_then(|rva| base.checked_add(rva))
+                .ok_or(Error::AddressOverflow)?;
+            let slot = base
+                .checked_add(*table as u64)
+                .ok_or(Error::AddressOverflow)?;
+            if memory.read_u64(slot)? != target {
+                return Err(Error::ImageMismatch { rva: *table });
+            }
+        }
+        Ok(reader::NightreignReader { module, file: self })
+    }
+}
+
+const OBJECT_TYPES: &[(&str, u32)] = &[
+    (".?AVCSTaskGroupImp@CS@@", reader::TASK_TABLE),
+    (".?AVCSTaskGroupIns@CS@@", reader::GROUP_TABLE),
+    (".?AVCSTimeLineTaskGroupIns@CS@@", reader::TIMELINE_TABLE),
+    (".?AVWorldChrManImp@CS@@", reader::WORLD_TABLE),
+    (".?AVChrSet@CS@@", reader::PLAYER_POOL_TABLE),
+    (".?AVPlayerIns@CS@@", reader::PLAYER_TABLE),
+    (".?AVEnemyIns@CS@@", reader::ENEMY_TABLE),
+    (".?AVChrIns@CS@@", reader::CHARACTER_TABLE),
+    (".?AVSoloParamRepositoryImp@CS@@", reader::PARAMETER_TABLE),
+    (".?AVParamResCap@CS@@", reader::PARAMETER_CAP_TABLE),
+];
+
+// Selected code evidence spans, including leaf getters without .pdata entries.
+// A span is not a claim that protected continuations or native ABI are reconstructed.
+const READ_CODE: &[CodeRange] = &[
+    CodeRange {
+        rva: 0xfec930,
+        length: 0x6c,
+    }, // 156 task slots
+    CodeRange {
+        rva: 0xfed500,
+        length: 0x18,
+    }, // indexed slot transfer
+    CodeRange {
+        rva: 0xfecc80,
+        length: 0x20,
+    }, // checked indexed task lookup
+    CodeRange {
+        rva: 0xfece30,
+        length: 0x1aa,
+    }, // group name/seed fields
+    CodeRange {
+        rva: 0xfed160,
+        length: 0xf8,
+    }, // group seed fields
+    CodeRange {
+        rva: 0xfed8d0,
+        length: 0xa7,
+    }, // timeline seed copy
+    CodeRange {
+        rva: 0x514e9c,
+        length: 0x68,
+    }, // world player pool construction route
+    CodeRange {
+        rva: 0x5197e0,
+        length: 0x84,
+    }, // player pool/key lookup
+    CodeRange {
+        rva: 0x6df1d6b,
+        length: 0x4f,
+    }, // protected ChrSet constructor route
+    CodeRange {
+        rva: 0x4ac770,
+        length: 0xf,
+    }, // 16-byte player slot stride
+    CodeRange {
+        rva: 0x4ac780,
+        length: 4,
+    }, // player count
+    CodeRange {
+        rva: 0x66c6e0,
+        length: 8,
+    }, // player data pointer
+    CodeRange {
+        rva: 0x66c6f0,
+        length: 0x28,
+    }, // player lookup key
+    CodeRange {
+        rva: 0xe9e680,
+        length: 0x2f,
+    }, // parameter cap bounds/stride
+    CodeRange {
+        rva: 0xe9e910,
+        length: 0x65,
+    }, // cap insert/count update
+    CodeRange {
+        rva: 0xe9f040,
+        length: 0x98,
+    }, // parameter name lookup and fallback
+];
+
+fn validate_object_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> Result<()> {
+    for (name, table) in OBJECT_TYPES {
+        if !image.vtables(name)?.iter().any(|vtable| {
+            vtable.table_rva == *table && vtable.object_offset == 0 && !vtable.entries.is_empty()
+        }) {
+            return Err(Error::InvalidProfile(
+                "NR object RTTI differs from evidenced file",
+            ));
+        }
+    }
+    for range in READ_CODE {
+        let section = image
+            .section_at(range.rva)
+            .filter(|section| section.is_executable())
+            .ok_or(Error::InvalidProfile("NR read evidence is not executable"))?;
+        if range.rva as u64 + range.length as u64 > section.rva as u64 + section.raw_size as u64 {
+            return Err(Error::InvalidProfile("NR read evidence crosses section"));
+        }
+        image.read_rva(range.rva, range.length)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
