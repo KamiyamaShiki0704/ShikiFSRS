@@ -159,6 +159,24 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(file.parameter_definitions().len(), 253);
     assert_eq!(file.parameter_definitions()[6].name, "NpcParam");
     assert_eq!(file.parameter_definitions()[69].name, "PartsDrawParam");
+    assert_eq!(file.builtin_goal_definitions().len(), 39);
+    let exec = file
+        .builtin_goal(shikifsrs_nightreign::goal_parameters::EXEC_ACTION_GOAL_ID)
+        .unwrap();
+    assert_eq!(exec.name, "ExecAction");
+    assert_eq!(exec.primary_vtable_rva, 0x2c03e48);
+    assert_eq!(
+        file.builtin_goal(shikifsrs_nightreign::goal_parameters::FOLLOW_PATH_GOAL_ID)
+            .unwrap()
+            .class_name,
+        ".?AVGoalFollowPathExecAction@CS@@"
+    );
+    for id in [-1, 100, 2014, 2147483647] {
+        assert_eq!(file.builtin_goal(id), None);
+    }
+    for row in file.builtin_goal_definitions() {
+        assert_eq!(file.builtin_goal(row.id), Some(row));
+    }
     let mut fixture = MappedFixture {
         image: file.file().image(),
         base: 0x240000000,

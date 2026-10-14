@@ -1,4 +1,5 @@
 //! Exact-version Nightreign metadata and experimental copied object views.
+pub mod builtin_goals;
 pub mod character_actions;
 pub mod character_effects;
 pub mod character_modules;
@@ -52,6 +53,7 @@ pub struct NightreignFile<'a> {
     file: VerifiedFile<'a>,
     definitions: TaskDefinitions,
     parameters: Vec<parameters::ParameterDefinition>,
+    builtin_goals: Vec<builtin_goals::BuiltinGoalDefinition>,
 }
 
 impl<'a> NightreignFile<'a> {
@@ -90,10 +92,12 @@ impl<'a> NightreignFile<'a> {
         roots::validate(file.image())?;
         validate_character_metadata(file.image())?;
         let parameters = parameters::read(file.image())?;
+        let builtin_goals = builtin_goals::read(file.image())?;
         Ok(Self {
             file,
             definitions,
             parameters,
+            builtin_goals,
         })
     }
 
@@ -107,6 +111,16 @@ impl<'a> NightreignFile<'a> {
 
     pub fn parameter_definitions(&self) -> &[parameters::ParameterDefinition] {
         &self.parameters
+    }
+    /// File-only specific builtin branches; dynamic fallback Goal IDs are not listed.
+    pub fn builtin_goal_definitions(&self) -> &[builtin_goals::BuiltinGoalDefinition] {
+        &self.builtin_goals
+    }
+    pub fn builtin_goal(&self, id: i32) -> Option<&builtin_goals::BuiltinGoalDefinition> {
+        self.builtin_goals
+            .binary_search_by_key(&id, |row| row.id)
+            .ok()
+            .map(|index| &self.builtin_goals[index])
     }
 
     /// Checks loaded headers, evidenced code spans and relocated primary vtable slots.
