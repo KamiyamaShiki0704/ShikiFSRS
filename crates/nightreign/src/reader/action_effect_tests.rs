@@ -247,3 +247,30 @@ fn goal_state_rejects_control_changes_and_address_overflow() {
     null.put(0x310, &[0; 13]);
     assert!(null.core().goal_action_state(0).is_err()); // Valid-looking embedded headers cannot validate a null owner.
 }
+
+#[test]
+fn goal_request_plan_uses_inline_parameter_zero_and_exact_implementation() {
+    let mut fixture = goal_fixture();
+    fixture.word(0x100a8, 0x40000);
+    fixture.object(0x40000, crate::goal_requests::EXEC_GOAL_TABLE);
+    fixture.dword(0x10060, 42.75f32.to_bits());
+    let plan = fixture.core().goal_action_request_plan(0x10000).unwrap();
+    assert_eq!(plan.interface_address, 0x10018);
+    assert_eq!(plan.implementation_address, 0x40000);
+    assert_eq!(plan.requested_id_bits, 42);
+    assert_eq!(plan.parameter_bits, 42.75f32.to_bits());
+    fixture.object(0x40000, PLAYER_TABLE);
+    assert!(fixture.core().goal_action_request_plan(0x10000).is_err());
+}
+#[test]
+fn goal_request_plan_rejects_changed_parameter_and_invalid_conversion() {
+    let mut fixture = goal_fixture();
+    fixture.word(0x100a8, 0x40000);
+    fixture.object(0x40000, crate::goal_requests::EXEC_GOAL_TABLE);
+    fixture.dword(0x10060, 42.75f32.to_bits());
+    fixture.replacement = Some((0x10060, 43f32.to_bits().to_le_bytes().to_vec()));
+    assert!(fixture.core().goal_action_request_plan(0x10000).is_err());
+    fixture.replacement = None;
+    fixture.dword(0x10060, f32::NAN.to_bits());
+    assert!(fixture.core().goal_action_request_plan(0x10000).is_err());
+}

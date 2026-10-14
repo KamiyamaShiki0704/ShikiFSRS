@@ -10,6 +10,7 @@ pub mod effect_addition;
 pub mod effect_operations;
 pub mod effect_tiers;
 pub mod goal_actions;
+pub mod goal_requests;
 pub mod native_tasks;
 pub mod parameter_fields;
 pub mod parameter_rows;
@@ -132,6 +133,9 @@ impl<'a> NightreignFile<'a> {
             module.code_address(range)?;
         }
         for range in goal_action_evidence()? {
+            module.code_address(range)?;
+        }
+        for range in goal_request_evidence()? {
             module.code_address(range)?;
         }
         for (_, table) in OBJECT_TYPES {
@@ -279,6 +283,27 @@ pub(crate) fn goal_action_evidence() -> Result<Vec<CodeRange>> {
         })
         .collect()
 }
+pub(crate) fn goal_request_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/goal-request-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR Goal request RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR Goal request RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR Goal request extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR Goal request extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
+}
 
 pub(crate) fn character_evidence() -> Result<Vec<CodeRange>> {
     include_str!("../data/character-code.csv")
@@ -315,6 +340,7 @@ fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> 
         (".?AVSpecialEffect@CS@@", character_effects::EFFECT_TABLE),
         (".?AVCSGoalFunc@CS@@", goal_actions::GOAL_FUNC_TABLE),
         (".?AVEzActionExecCtrl@CS@@", goal_actions::CONTROL_TABLE),
+        (".?AVGoalExecAction@CS@@", goal_requests::EXEC_GOAL_TABLE),
     ] {
         if !image
             .vtables(name)?

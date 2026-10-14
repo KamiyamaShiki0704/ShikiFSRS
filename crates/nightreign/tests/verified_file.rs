@@ -12,6 +12,9 @@ use effect_addition_fixture::check_effect_addition_receipts;
 #[path = "fixtures/effect_tiers.rs"]
 mod effect_tier_fixture;
 use effect_tier_fixture::check_effect_tier_plans;
+#[path = "fixtures/goal_requests.rs"]
+mod goal_request_fixture;
+use goal_request_fixture::check_goal_request_receipts;
 
 struct MappedFixture<'a> {
     image: &'a FileImage<'a>,
@@ -68,6 +71,7 @@ impl AddressSpace for MappedFixture<'_> {
                     0x2c0ba90 + 0x510,
                     0x2c18120 + 0x510,
                     0x2c307f8 + 0x510,
+                    0x2c03e48 + 0x10,
                 ]
                 .contains(&rva)
             {
@@ -307,6 +311,9 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.dword(0x300314, u32::MAX);
     fixture.dword(0x300318, 42);
     fixture.put(0x30031c, &[1]);
+    fixture.word(0x3000a8, 0x310000);
+    fixture.object(0x310000, 0x2c03e48);
+    fixture.dword(0x300060, 42.75f32.to_bits());
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
@@ -314,6 +321,7 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(goal_state.raw_id_bits, 42);
     assert_eq!(goal_state.raw_flag, 1);
     assert_eq!(goal_state.raw_word_14, -1);
+    check_goal_request_receipts(&file, &fixture);
     assert_eq!(state.is_local_player, Some(true));
     assert_eq!(state.attributes.health.current, 100);
     assert_eq!(state.attributes.stamina.current, -50);
