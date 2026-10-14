@@ -1433,3 +1433,166 @@ fn action_id_lookup_rechecks_nodes_header_and_container_pointers() {
         );
     }
 }
+
+fn action_id_resolution_fixture() -> Fixture {
+    let mut fixture = action_id_lookup_fixture();
+    fixture.word(
+        0x140000000 + crate::character_think::COM_OWNER_TABLE as u64 + 0x170,
+        0x140282380,
+    );
+    fixture.word(0xb00d8, 0x400000);
+    fixture.word(0x400010, 0x70000);
+    fixture.word(0x400020, 0x410000);
+    fixture.word(0x410000, 0x420000);
+    fixture.put(
+        0x410008,
+        &[-1i32, 10, 20, 30, 40]
+            .into_iter()
+            .flat_map(i32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture.word(0x420078, 0x430000);
+    fixture.word(0x430060, 0x440000);
+    fixture.dword(0x440098, 3);
+    fixture.word(0x4400a0, 0x450000);
+    for (j, key, resource) in [(0, 110, 0xbeef000u64), (1, 130, 0xcafe000), (2, 140, 0)] {
+        let address = 0x450000 + j * 72;
+        fixture.put(address, &[0; 16]);
+        fixture.dword(address, key);
+        fixture.word(address + 8, resource);
+    }
+    fixture
+}
+#[test]
+fn action_id_resolution_tries_descending_offsets_and_skips_null_resources() {
+    let fixture = action_id_resolution_fixture();
+    let plan = fixture
+        .core()
+        .character_action_id_resolution_plan(0x70000, 100, 3)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        plan.outcome,
+        crate::action_id_resolution::ActionIdResolutionOutcome::ResourceFound
+    );
+    assert_eq!(plan.resolved_id_bits, 130);
+    assert_eq!(plan.native_offset_bits, 30);
+    assert_eq!(
+        plan.candidates
+            .iter()
+            .map(|c| c.offset_slot)
+            .collect::<Vec<_>>(),
+        [4, 3]
+    );
+    assert!(plan.candidates[0].record_address.is_some());
+    assert_eq!(plan.candidates[0].resource_address, None);
+    assert_eq!(plan.candidates[1].resource_address, Some(0xcafe000));
+}
+#[test]
+fn action_id_resolution_missing_context_and_unavailable_catalog_are_distinct() {
+    use crate::action_id_resolution::ActionIdResolutionOutcome as Outcome;
+    let mut fixture = action_id_resolution_fixture();
+    fixture.word(0xb00d8, 0);
+    let missing = fixture
+        .core()
+        .character_action_id_resolution_plan(0x70000, 0, 3)
+        .unwrap()
+        .unwrap();
+    assert_eq!(missing.outcome, Outcome::OwnerContextMissing);
+    assert_eq!(missing.resolved_id_bits, u32::MAX);
+    fixture.word(0xb00d8, 0x400000);
+    fixture.word(0x410000, 0);
+    let no_catalog = fixture
+        .core()
+        .character_action_id_resolution_plan(0x70000, 100, 3)
+        .unwrap()
+        .unwrap();
+    assert_eq!(no_catalog.outcome, Outcome::NoAvailableResource);
+    assert_eq!(no_catalog.resolved_id_bits, 100);
+    fixture.word(0x410000, 0x420000);
+    fixture.word(0x4400a0, 0);
+    fixture.dword(0x440098, u32::MAX);
+    assert_eq!(
+        fixture
+            .core()
+            .character_action_id_resolution_plan(0x70000, 100, 3)
+            .unwrap()
+            .unwrap()
+            .outcome,
+        Outcome::NoAvailableResource
+    );
+}
+#[test]
+fn action_id_resolution_preserves_modular_id_arithmetic_and_negative_offset_exclusion() {
+    let mut fixture = action_id_resolution_fixture();
+    fixture.put(
+        0x410008,
+        &[-1i32, -1, -1, -1, 10]
+            .into_iter()
+            .flat_map(i32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture.dword(0x440098, 1);
+    fixture.dword(0x450000, 7);
+    fixture.word(0x450008, 0xbeef000);
+    let plan = fixture
+        .core()
+        .character_action_id_resolution_plan(0x70000, u32::MAX - 2, 1)
+        .unwrap()
+        .unwrap();
+    assert_eq!(plan.resolved_id_bits, 7);
+    assert_eq!(plan.native_offset_bits, 10);
+    assert_eq!(plan.candidates.len(), 1);
+}
+#[test]
+fn action_id_resolution_rejects_bounds_order_foreign_context_and_slot_patch() {
+    let fixture = action_id_resolution_fixture();
+    assert!(
+        fixture
+            .core()
+            .character_action_id_resolution_plan(0x70000, 100, 2)
+            .is_err()
+    );
+    assert!(
+        fixture
+            .core()
+            .character_action_id_resolution_plan(0x70000, 100, 0)
+            .is_err()
+    );
+    for (address, value) in [(0x400010, 0x70008u64), (0x400020, 0), (0x142bf99d0, 0)] {
+        let mut fixture = action_id_resolution_fixture();
+        fixture.word(address, value);
+        assert!(
+            fixture
+                .core()
+                .character_action_id_resolution_plan(0x70000, 100, 3)
+                .is_err()
+        );
+    }
+    let mut unordered = action_id_resolution_fixture();
+    unordered.dword(0x450000, 999);
+    assert!(
+        unordered
+            .core()
+            .character_action_id_resolution_plan(0x70000, 100, 3)
+            .is_err()
+    );
+}
+#[test]
+fn action_id_resolution_rechecks_offsets_records_metadata_and_owner_link() {
+    for (address, bytes) in [
+        (0x410008, vec![0; 20]),
+        (0x450048, vec![0; 16]),
+        (0x440098, 0u32.to_le_bytes().to_vec()),
+        (0xb00d8, 0u64.to_le_bytes().to_vec()),
+    ] {
+        let mut fixture = action_id_resolution_fixture();
+        fixture.replacement = Some((address, bytes));
+        assert!(
+            fixture
+                .core()
+                .character_action_id_resolution_plan(0x70000, 100, 3)
+                .is_err()
+        );
+    }
+}

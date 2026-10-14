@@ -72,6 +72,7 @@ impl AddressSpace for MappedFixture<'_> {
                     0x2c18120 + 0x510,
                     0x2c307f8 + 0x510,
                     0x2c03e48 + 0x10,
+                    0x2bf9860 + 0x170,
                 ]
                 .contains(&rva)
             {
@@ -433,6 +434,24 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.word(0x3f0008, 0x3e0000);
     fixture.word(0x3f0010, 0x3e0000);
     fixture.dword(0x3f001c, 4001);
+    fixture.word(0x3600d8, 0x400000);
+    fixture.word(0x400010, 0x50000);
+    fixture.word(0x400020, 0x410000);
+    fixture.word(0x410000, 0x420000);
+    fixture.put(
+        0x410008,
+        &[-1i32, -1, -1, -1, 1000]
+            .into_iter()
+            .flat_map(i32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture.word(0x420078, 0x430000);
+    fixture.word(0x430060, 0x440000);
+    fixture.word(0x4400a0, 0x450000);
+    fixture.dword(0x440098, 1);
+    fixture.put(0x450000, &[0; 16]);
+    fixture.dword(0x450000, 4001);
+    fixture.word(0x450008, 0xbeef000);
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
@@ -468,6 +487,13 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
         .unwrap();
     assert_eq!(request_ids.requested_id, 3001);
     assert_eq!(request_ids.resolved_id, 4001);
+    let resolution = reader
+        .character_action_id_resolution_plan(0x50000, request_ids.requested_id as u32, 8)
+        .unwrap()
+        .unwrap();
+    assert_eq!(resolution.resolved_id_bits, request_ids.resolved_id as u32);
+    assert_eq!(resolution.native_offset_bits, 1000);
+
     assert_eq!(request_ids.raw_lookup_match_flag, 1);
     let lookup = reader
         .character_action_id_lookup(0x50000, request_ids.resolved_id as u32, 8)
