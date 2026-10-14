@@ -12,6 +12,7 @@ pub mod effect_operations;
 pub mod effect_tiers;
 pub mod goal_actions;
 pub mod goal_requests;
+pub mod goal_roots;
 pub mod native_tasks;
 pub mod parameter_fields;
 pub mod parameter_rows;

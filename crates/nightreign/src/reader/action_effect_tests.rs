@@ -661,3 +661,92 @@ fn character_think_rechecks_all_copied_association_links() {
         assert!(fixture.core().character_com_think(0x70000).is_err());
     }
 }
+
+fn goal_root_fixture(slot: u8) -> Fixture {
+    let mut fixture = character_think_fixture();
+    let pool = 0x200000;
+    let context = pool + slot as u64 * crate::goal_roots::CONTEXT_SLOT_STRIDE;
+    for (address, byte) in goal_fixture().bytes {
+        fixture.bytes.insert(context + address - 0x10000, byte);
+    }
+    fixture.word(context + 0x20, context);
+    fixture.dword(context + 0xa0, 100);
+    fixture.word(0x90040, 0x90000);
+    fixture.word(0x90048, 0x90028);
+    fixture.put(0x90050, &[0; 9]);
+    fixture.dword(0x90050, 41);
+    fixture.dword(0x90054, 100);
+    fixture.word(0x90060, pool);
+    fixture.word(0x90068, u64::MAX); // Raw definition pointer is copied, not traversed.
+    fixture.word(0x90070, context);
+    fixture
+}
+#[test]
+fn goal_root_reads_only_selected_first_or_last_pool_slot() {
+    for slot in [0, 31] {
+        let fixture = goal_root_fixture(slot);
+        let root = fixture
+            .core()
+            .character_goal_root(0x70000)
+            .unwrap()
+            .unwrap();
+        let selected = root.selected.unwrap();
+        assert_eq!(root.manager_address, 0x90040);
+        assert_eq!(root.raw_word_14, 100);
+        assert_eq!(root.raw_definition_address, u64::MAX);
+        assert_eq!(selected.slot_index, slot);
+        assert_eq!(selected.raw_goal_id, 100);
+        assert_eq!(selected.control.raw_id_bits, 0xfedcba98); // Goal ID is not the controller request ID.
+        assert_eq!(
+            selected.control.raw_parent_address,
+            root.association.think_address
+        );
+    }
+}
+#[test]
+fn goal_root_absent_think_and_empty_selection_are_distinct() {
+    let mut fixture = goal_root_fixture(0);
+    fixture.word(0x90070, 0);
+    fixture.word(0x90060, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .character_goal_root(0x70000)
+            .unwrap()
+            .unwrap()
+            .selected,
+        None
+    );
+    fixture.word(0xb00c0, 0);
+    assert_eq!(fixture.core().character_goal_root(0x70000).unwrap(), None);
+}
+#[test]
+fn goal_root_rejects_out_of_pool_partial_and_foreign_contexts() {
+    for context in [0x1ffff8, 0x200001, 0x207a00] {
+        let mut fixture = goal_root_fixture(0);
+        fixture.word(0x90070, context);
+        assert!(fixture.core().character_goal_root(0x70000).is_err());
+    }
+    for (address, value) in [
+        (0x90040, 0x90008u64),
+        (0x90060, 0),
+        (0x200000, 0x90008),
+        (0x200308, 0x90008),
+    ] {
+        let mut fixture = goal_root_fixture(0);
+        fixture.word(address, value);
+        assert!(fixture.core().character_goal_root(0x70000).is_err());
+    }
+}
+#[test]
+fn goal_root_rejects_selected_id_state_and_manager_changes() {
+    for (address, bytes) in [
+        (0x90070, 0u64.to_le_bytes().to_vec()),
+        (0x2000a0, 101u32.to_le_bytes().to_vec()),
+        (0x90050, vec![1; 9]),
+    ] {
+        let mut fixture = goal_root_fixture(0);
+        fixture.replacement = Some((address, bytes));
+        assert!(fixture.core().character_goal_root(0x70000).is_err());
+    }
+}

@@ -303,6 +303,14 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x201000, &[0; 976]);
     fixture.put(0x201156, &449u16.to_le_bytes());
     fixture.word(0x300000, 0x370000);
+    fixture.dword(0x3000a0, 100);
+    fixture.word(0x370040, 0x370000);
+    fixture.word(0x370048, 0x370028);
+    fixture.put(0x370050, &[0; 9]);
+    fixture.dword(0x370054, 100);
+    fixture.word(0x370060, 0x300000);
+    fixture.word(0x370068, 0);
+    fixture.word(0x370070, 0x300000);
     fixture.object(0x37c958, 0x2bf9180);
     fixture.word(0x37c960, 0x350000);
     fixture.word(0x350000, 0x50000);
@@ -371,6 +379,11 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(reverse.think_address, self_target.think_address);
     assert_eq!(reverse.handle_address, self_target.handle_address);
     assert_eq!(reverse.owner_interface_address, 0x3600c8);
+    let goal_root = reader.character_goal_root(0x50000).unwrap().unwrap();
+    let selected = goal_root.selected.unwrap();
+    assert_eq!(selected.slot_index, 0);
+    assert_eq!(selected.raw_goal_id, 100);
+    assert_eq!(selected.control.context_address, queue.context_address);
     assert!(
         reader
             .think_self_effect_predicate(0x300000, 123, 8)

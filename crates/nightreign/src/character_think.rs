@@ -1,5 +1,5 @@
 //! Experimental reverse association for the exact NR ComManipulator implementation.
-//! Other manipulator kinds and discovery of a Goal context remain unexposed.
+//! Other manipulator kinds remain unexposed. Selected Goal lookup is in goal_roots.
 use crate::{
     reader::{ENEMY_TABLE, NightreignReader, PLAYER_TABLE, ReaderCore},
     think_actions::AI_FUNC_TABLE,
