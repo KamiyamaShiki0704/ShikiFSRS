@@ -208,6 +208,164 @@ fn goal_fixture() -> Fixture {
     fixture.put(0x1031c, &[255]);
     fixture
 }
+
+fn script_fixture() -> Fixture {
+    let mut f = goal_fixture();
+    f.dword(0x100a0, 2014);
+    f.word(0x100a8, 0x20000);
+    f.put(0x20000, &[0; 0x140]);
+    f.object(0x20000, crate::script_goals::SCRIPT_GOAL_TABLE);
+    f.dword(0x200f8, 2014);
+    f.word(0x20128, 0x20000);
+    f.dword(0x20130, 0xfedcba98);
+    f.put(0x20138, &[255]);
+    for (offset, text) in [
+        (8, b"G".as_slice()),
+        (0x38, b"G_Activate"),
+        (0x68, b"G_Update"),
+        (0x98, b"G_Terminate"),
+        (0xc8, b"G_Interupt"),
+    ] {
+        f.put(0x20000 + offset + 8, text);
+        f.word(0x20000 + offset + 0x18, text.len() as u64);
+        f.word(0x20000 + offset + 0x20, 15);
+    }
+    f
+}
+
+#[test]
+fn script_goal_copies_native_names_heap_storage_and_raw_dispatch_state() {
+    let mut f = script_fixture();
+    let text = b"LongGoal_Interupt";
+    f.word(0x200d0, 0x40000);
+    f.word(0x200e0, text.len() as u64);
+    f.word(0x200e8, 31);
+    f.put(0x40000, text);
+    f.put(0x40000 + text.len() as u64, &[0]);
+    let view = f
+        .core()
+        .goal_script_binding(0x10000, 128, &[])
+        .unwrap()
+        .unwrap();
+    let script = view.implementation.unwrap();
+    assert_eq!(script.names[2], b"G_Update");
+    assert_eq!(script.names[4], text);
+    assert_eq!(script.raw_dispatch_flags, 0xfedcba98);
+    assert_eq!(script.raw_initialized_byte, 255);
+}
+
+#[test]
+fn script_goal_null_binding_empty_name_and_builtin_are_distinct() {
+    let mut f = script_fixture();
+    f.put(0x20010, &[0]);
+    f.word(0x20020, 0);
+    assert!(
+        f.core()
+            .goal_script_binding(0x10000, 128, &[])
+            .unwrap()
+            .unwrap()
+            .implementation
+            .unwrap()
+            .names[0]
+            .is_empty()
+    );
+    f.word(0x100a8, 0);
+    assert!(
+        f.core()
+            .goal_script_binding(0x10000, 128, &[])
+            .unwrap()
+            .unwrap()
+            .implementation
+            .is_none()
+    );
+    let catalog =
+        crate::builtin_goals::catalog(include_str!("../../data/builtin-goals.csv")).unwrap();
+    f.dword(0x100a0, 2034);
+    f.word(0x100a8, u64::MAX);
+    assert!(
+        f.core()
+            .goal_script_binding(0x10000, 128, &catalog)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn script_goal_rejects_wrong_type_id_self_link_bounds_and_terminator() {
+    for (address, bytes) in [
+        (0x20000, 0u64.to_le_bytes().to_vec()),
+        (0x200f8, 1u32.to_le_bytes().to_vec()),
+        (0x20128, 0u64.to_le_bytes().to_vec()),
+        (0x20020, 99u64.to_le_bytes().to_vec()),
+        (0x20011, vec![1]),
+    ] {
+        let mut f = script_fixture();
+        f.put(address, &bytes);
+        assert!(f.core().goal_script_binding(0x10000, 16, &[]).is_err());
+    }
+    let f = script_fixture();
+    assert!(f.core().goal_script_binding(0x10000, 0, &[]).is_err());
+}
+
+#[test]
+fn script_goal_rejects_changed_names_flags_and_context_binding() {
+    for (address, bytes) in [
+        (0x20010, vec![b'X', 0]),
+        (0x20130, vec![0; 9]),
+        (0x100a8, 0u64.to_le_bytes().to_vec()),
+    ] {
+        let mut f = script_fixture();
+        f.replacement = Some((address, bytes));
+        assert!(f.core().goal_script_binding(0x10000, 128, &[]).is_err());
+    }
+}
+
+fn follow_path_fixture() -> Fixture {
+    let mut f = goal_fixture();
+    f.dword(0x100a0, 2035);
+    f.word(0x100a8, 0x20000);
+    f.object(0x20000, crate::follow_path_goals::FOLLOW_PATH_TABLE);
+    f.dword(0x200f8, 2035);
+    for (j, bits) in [
+        42.75f32.to_bits(),
+        (-3.5f32).to_bits(),
+        2.9f32.to_bits(),
+        0x7fc12345,
+        (-0.0f32).to_bits(),
+        f32::INFINITY.to_bits(),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        f.dword(0x10060 + j as u64 * 4, bits);
+    }
+    f
+}
+#[test]
+fn follow_path_plan_preserves_float_arguments_and_truncates_only_integer_slots() {
+    let f = follow_path_fixture();
+    let plan = f.core().goal_follow_path_action_plan(0x10000).unwrap();
+    assert_eq!(plan.integer_arguments, [42, -3, 2, 0]);
+    assert_eq!(plan.parameter_bits[3], 0x7fc12345);
+    assert_eq!(plan.parameter_bits[5], f32::INFINITY.to_bits());
+    assert_eq!(plan.interface_address, 0x10018);
+}
+#[test]
+fn follow_path_plan_rejects_wrong_binding_invalid_integer_domain_and_changes() {
+    for (address, bytes) in [
+        (0x100a0, 2034u32.to_le_bytes().to_vec()),
+        (0x200f8, 2034u32.to_le_bytes().to_vec()),
+        (0x10064, f32::INFINITY.to_bits().to_le_bytes().to_vec()),
+        (0x20000, 0u64.to_le_bytes().to_vec()),
+    ] {
+        let mut f = follow_path_fixture();
+        f.put(address, &bytes);
+        assert!(f.core().goal_follow_path_action_plan(0x10000).is_err());
+    }
+    let mut f = follow_path_fixture();
+    f.replacement = Some((0x10060, vec![0; 24]));
+    assert!(f.core().goal_follow_path_action_plan(0x10000).is_err());
+}
 #[test]
 fn goal_action_state_preserves_raw_getter_bits_and_null_link() {
     let fixture = goal_fixture();

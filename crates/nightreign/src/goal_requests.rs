@@ -19,7 +19,7 @@ pub struct GoalActionRequestPlan {
     pub requested_id_bits: u32,
     pub before: GoalActionState,
 }
-fn integer_bits(parameter_bits: u32) -> Result<u32> {
+pub(crate) fn integer_bits(parameter_bits: u32) -> Result<u32> {
     let value = f32::from_bits(parameter_bits);
     if !value.is_finite() || !(-2147483648.0..2147483648.0).contains(&value) {
         return Err(Error::InvalidProfile(

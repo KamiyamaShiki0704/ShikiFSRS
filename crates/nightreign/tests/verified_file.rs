@@ -75,6 +75,10 @@ impl AddressSpace for MappedFixture<'_> {
                     0x2c18120 + 0x510,
                     0x2c307f8 + 0x510,
                     0x2c03e48 + 0x10,
+                    0x2c038e8 + 0x10,
+                    0x2c038e8 + 0x18,
+                    0x2c038e8 + 0x20,
+                    0x2c038e8 + 0x28,
                     0x2bf9860 + 0x170,
                 ]
                 .contains(&rva)
@@ -455,7 +459,71 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x450000, &[0; 16]);
     fixture.dword(0x450000, 4001);
     fixture.word(0x450008, 0xbeef000);
+    for (context, definition, id, table) in [
+        (0x510000, 0x520000, 2014, 0x2c038e8),
+        (0x530000, 0x540000, 2035, 0x2c03e90),
+    ] {
+        fixture.put(context, &[0; 0x3d0]);
+        fixture.object(context + 0x18, 0x2c025f0);
+        fixture.word(context + 0x20, context);
+        fixture.object(context + 0x300, 0x2bf9cf0);
+        fixture.dword(context + 0xa0, id);
+        fixture.word(context + 0xa8, definition);
+        fixture.put(definition, &[0; 0x140]);
+        fixture.object(definition, table);
+        fixture.dword(definition + 0xf8, id);
+    }
+    fixture.word(0x520128, 0x520000);
+    for (offset, text) in [
+        (8, b"G".as_slice()),
+        (0x38, b"G_Activate"),
+        (0x68, b"G_Update"),
+        (0x98, b"G_Terminate"),
+        (0xc8, b"G_Interupt"),
+    ] {
+        fixture.put(0x520000 + offset + 8, text);
+        fixture.word(0x520000 + offset + 0x18, text.len() as u64);
+        fixture.word(0x520000 + offset + 0x20, 15);
+    }
+    for (j, value) in [42.75f32, -3.5, 2.9, 0.5, 6.75, 1.25]
+        .into_iter()
+        .enumerate()
+    {
+        fixture.dword(0x530060 + j as u64 * 4, value.to_bits());
+    }
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
+    use shikifsrs_nightreign::script_goals::ScriptGoalStage;
+    for (stage, expected) in [
+        (ScriptGoalStage::Activate, b"G_Activate".as_slice()),
+        (ScriptGoalStage::Update, b"G_Update"),
+        (ScriptGoalStage::Terminate, b"G_Terminate"),
+        (ScriptGoalStage::Interrupt, b"G_Interupt"),
+    ] {
+        let plan = reader
+            .goal_script_dispatch_plan(0x510000, stage, 128)
+            .unwrap()
+            .unwrap();
+        assert_eq!(plan.callback_name, expected);
+        assert_eq!(plan.binding.id, 2014);
+    }
+    let path_plan = reader.goal_follow_path_action_plan(0x530000).unwrap();
+    assert_eq!(path_plan.integer_arguments, [42, -3, 2, 6]);
+    assert_eq!(path_plan.parameter_bits[3], 0.5f32.to_bits());
+    let patched_script_slot = MappedFixture {
+        image: fixture.image,
+        base: fixture.base,
+        objects: fixture.objects.clone(),
+        changed_byte: Some((0x2c038e8 + 0x10, 0)),
+    };
+    let patched_reader = file
+        .bind_reader(&patched_script_slot, fixture.base)
+        .unwrap();
+    assert!(
+        patched_reader
+            .goal_script_dispatch_plan(0x510000, ScriptGoalStage::Activate, 128)
+            .is_err()
+    );
+
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
     let goal_state = reader.goal_action_state(0x300000).unwrap();

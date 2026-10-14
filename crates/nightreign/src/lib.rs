@@ -15,6 +15,7 @@ pub mod current_tasks;
 pub mod effect_addition;
 pub mod effect_operations;
 pub mod effect_tiers;
+pub mod follow_path_goals;
 pub mod goal_actions;
 pub mod goal_bindings;
 pub mod goal_children;
@@ -29,6 +30,7 @@ pub mod parameter_schema;
 pub mod parameters;
 pub mod reader;
 pub mod roots;
+pub mod script_goals;
 pub mod think_actions;
 pub mod think_targets;
 use shikifsrs_runtime::{
@@ -391,6 +393,11 @@ fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> 
         (".?AVCSGoalFunc@CS@@", goal_actions::GOAL_FUNC_TABLE),
         (".?AVEzActionExecCtrl@CS@@", goal_actions::CONTROL_TABLE),
         (".?AVGoalExecAction@CS@@", goal_requests::EXEC_GOAL_TABLE),
+        (".?AVCSGoalScript@CS@@", script_goals::SCRIPT_GOAL_TABLE),
+        (
+            ".?AVGoalFollowPathExecAction@CS@@",
+            follow_path_goals::FOLLOW_PATH_TABLE,
+        ),
         (".?AVCSAiFunc@CS@@", think_actions::AI_FUNC_TABLE),
         (
             ".?AVComManipulator@CS@@",
