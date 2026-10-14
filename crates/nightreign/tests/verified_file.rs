@@ -9,6 +9,9 @@ use effect_removal_fixture::check_effect_removal_receipts;
 #[path = "fixtures/effect_addition.rs"]
 mod effect_addition_fixture;
 use effect_addition_fixture::check_effect_addition_receipts;
+#[path = "fixtures/effect_tiers.rs"]
+mod effect_tier_fixture;
+use effect_tier_fixture::check_effect_tier_plans;
 
 struct MappedFixture<'a> {
     image: &'a FileImage<'a>,
@@ -308,6 +311,7 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert!(effects.contains_state(449));
     check_effect_removal_receipts(&file, &fixture);
     check_effect_addition_receipts(&file, &fixture);
+    check_effect_tier_plans(&file, &fixture);
     let schema = reader.parameter_schema(0x70000, "NpcParam", 0, 8).unwrap();
     assert_eq!(schema.data_version, 9);
     assert!(!schema.has_row_stride_evidence());
