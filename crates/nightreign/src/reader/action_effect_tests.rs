@@ -274,3 +274,91 @@ fn goal_request_plan_rejects_changed_parameter_and_invalid_conversion() {
     fixture.dword(0x10060, f32::NAN.to_bits());
     assert!(fixture.core().goal_action_request_plan(0x10000).is_err());
 }
+
+fn think_queue_fixture() -> Fixture {
+    let mut fixture = goal_fixture();
+    fixture.word(0x90008, 0xa0000);
+    fixture.object(0xa0000, crate::think_actions::AI_FUNC_TABLE);
+    fixture.word(0xa0008, 0x90000);
+    for (offset, value) in [(0, 0x90000), (8, 0xd0000), (0x10, 0xb0000), (0x18, 2)] {
+        fixture.word(0x9db70 + offset, value);
+    }
+    fixture.word(0xb0000, 0xc0000);
+    fixture.word(0xb0008, 0xc1000);
+    for (address, next, previous, key, flag, tag) in [
+        (0xc0000, 0xc1000, 0xb0000, 100, 0xaau8, 1),
+        (0xc1000, 0xb0000, 0xc0000, 200, 0x55u8, 2),
+    ] {
+        fixture.put(address, &[0; 40]);
+        fixture.word(address, next);
+        fixture.word(address + 8, previous);
+        fixture.word(address + 0x10, 0x90000);
+        fixture.dword(address + 0x18, key);
+        fixture.dword(address + 0x1c, 42);
+        fixture.put(address + 0x20, &[flag]);
+        fixture.dword(address + 0x24, tag);
+    }
+    fixture
+}
+#[test]
+fn think_event_queue_copies_order_numeric_keys_and_full_flags() {
+    let fixture = think_queue_fixture();
+    let queue = fixture
+        .core()
+        .think_action_queue(0x10000, 2)
+        .unwrap()
+        .unwrap();
+    assert_eq!(queue.think_address, 0x90000);
+    assert_eq!(queue.interface_address, 0xa0000);
+    assert_eq!(queue.events[0].raw_key_a, 100);
+    assert_eq!(queue.events[1].raw_key_a, 200);
+    assert_eq!(queue.events[0].raw_flag, 0xaa);
+    assert_eq!(queue.events[1].raw_flag, 0x55);
+    assert_eq!(queue.events[0].raw_tag, 1);
+    assert_eq!(queue.events[1].raw_tag, 2);
+}
+#[test]
+fn think_queue_absent_parent_and_empty_sentinel_remain_distinct() {
+    let mut fixture = think_queue_fixture();
+    fixture.word(0x9db88, 0);
+    fixture.word(0xb0000, 0xb0000);
+    fixture.word(0xb0008, 0xb0000);
+    assert!(
+        fixture
+            .core()
+            .think_action_queue(0x10000, 2)
+            .unwrap()
+            .unwrap()
+            .events
+            .is_empty()
+    );
+    fixture.word(0x10000, 0);
+    assert_eq!(fixture.core().think_action_queue(0x10000, 2).unwrap(), None);
+    assert!(fixture.core().think_action_queue(0x10000, 0).is_err());
+}
+#[test]
+fn think_queue_rejects_count_cycles_owner_and_backlink_errors() {
+    let mut fixture = think_queue_fixture();
+    assert!(fixture.core().think_action_queue(0x10000, 1).is_err());
+    fixture.word(0xc1000, 0xc0000);
+    assert!(fixture.core().think_action_queue(0x10000, 3).is_err());
+    fixture.word(0xc1000, 0xb0000);
+    fixture.word(0xc1008, 0xb0000);
+    assert!(fixture.core().think_action_queue(0x10000, 3).is_err());
+    fixture.word(0xc1008, 0xc0000);
+    fixture.word(0xc1010, 0x90008);
+    assert!(fixture.core().think_action_queue(0x10000, 3).is_err());
+}
+#[test]
+fn think_queue_rejects_foreign_interface_and_record_changes() {
+    let mut fixture = think_queue_fixture();
+    fixture.object(0xa0000, PLAYER_TABLE);
+    assert!(fixture.core().think_action_queue(0x10000, 2).is_err());
+    fixture.object(0xa0000, crate::think_actions::AI_FUNC_TABLE);
+    fixture.word(0xa0008, 0x90008);
+    assert!(fixture.core().think_action_queue(0x10000, 2).is_err());
+    fixture.word(0xa0008, 0x90000);
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((0xc0000, vec![0; 40]));
+    assert!(fixture.core().think_action_queue(0x10000, 2).is_err());
+}

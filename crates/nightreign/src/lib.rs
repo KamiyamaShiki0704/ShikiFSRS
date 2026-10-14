@@ -18,6 +18,7 @@ pub mod parameter_schema;
 pub mod parameters;
 pub mod reader;
 pub mod roots;
+pub mod think_actions;
 use shikifsrs_runtime::{
     Error, Result,
     memory::AddressSpace,
@@ -136,6 +137,9 @@ impl<'a> NightreignFile<'a> {
             module.code_address(range)?;
         }
         for range in goal_request_evidence()? {
+            module.code_address(range)?;
+        }
+        for range in think_action_evidence()? {
             module.code_address(range)?;
         }
         for (_, table) in OBJECT_TYPES {
@@ -304,6 +308,27 @@ pub(crate) fn goal_request_evidence() -> Result<Vec<CodeRange>> {
         })
         .collect()
 }
+pub(crate) fn think_action_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/think-action-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR Think RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR Think RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR Think extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR Think extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
+}
 
 pub(crate) fn character_evidence() -> Result<Vec<CodeRange>> {
     include_str!("../data/character-code.csv")
@@ -341,6 +366,7 @@ fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> 
         (".?AVCSGoalFunc@CS@@", goal_actions::GOAL_FUNC_TABLE),
         (".?AVEzActionExecCtrl@CS@@", goal_actions::CONTROL_TABLE),
         (".?AVGoalExecAction@CS@@", goal_requests::EXEC_GOAL_TABLE),
+        (".?AVCSAiFunc@CS@@", think_actions::AI_FUNC_TABLE),
     ] {
         if !image
             .vtables(name)?
