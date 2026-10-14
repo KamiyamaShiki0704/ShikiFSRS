@@ -1,5 +1,5 @@
 //! Experimental bounded copies of the native Think action-event list.
-//! Numeric keys/tags remain raw; no start/end, animation or execution meanings are inferred.
+//! Keys remain raw. Predicate changes do not prove animation or action execution.
 use crate::reader::{NightreignReader, ReaderCore};
 use shikifsrs_runtime::{Error, Result, memory::AddressSpace};
 use std::collections::BTreeSet;
@@ -12,6 +12,39 @@ pub struct ThinkActionEvent {
     pub raw_flag: u8,
     pub raw_tag: u32,
 }
+/// Observed result of the native predicate sampler's last update.
+/// Initial zero tags also map to NoChange; they do not prove an update occurred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThinkPredicateTransition {
+    NoChange,
+    BecameTrue,
+    BecameFalse,
+    Unknown(u32),
+}
+/// The two predicate edges supported by the native key-B queries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThinkPredicateEdge {
+    BecameTrue,
+    BecameFalse,
+}
+impl ThinkPredicateEdge {
+    fn tag(self) -> u32 {
+        match self {
+            Self::BecameTrue => 1,
+            Self::BecameFalse => 2,
+        }
+    }
+}
+impl ThinkActionEvent {
+    pub fn predicate_transition(&self) -> ThinkPredicateTransition {
+        match self.raw_tag {
+            0 => ThinkPredicateTransition::NoChange,
+            1 => ThinkPredicateTransition::BecameTrue,
+            2 => ThinkPredicateTransition::BecameFalse,
+            tag => ThinkPredicateTransition::Unknown(tag),
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThinkActionQueue {
     pub context_address: u64,
@@ -21,6 +54,33 @@ pub struct ThinkActionQueue {
     pub allocator_address: u64,
     pub sentinel_address: u64,
     pub events: Vec<ThinkActionEvent>,
+}
+impl ThinkActionQueue {
+    /// Matches the native tag/key-B test. Key A is deliberately not filtered.
+    /// Searches only this copied observation; it does not query the engine again.
+    pub fn has_transition_for_key_b(&self, edge: ThinkPredicateEdge, key_b: u32) -> bool {
+        self.events
+            .iter()
+            .any(|event| event.raw_tag == edge.tag() && event.raw_key_b == key_b)
+    }
+    /// Returns the first matching key B in native list order, including zero.
+    pub fn first_transition_key_b(&self, edge: ThinkPredicateEdge) -> Option<u32> {
+        self.events
+            .iter()
+            .find(|event| event.raw_tag == edge.tag())
+            .map(|event| event.raw_key_b)
+    }
+    /// Contribution ORed into Think's event word by the native queue aggregator.
+    /// The complete event word includes other producers and is not reconstructed.
+    pub fn predicate_event_mask(&self) -> u64 {
+        self.events.iter().fold(0, |mask, event| {
+            mask | match event.raw_tag {
+                1 => 0x0800_0000_0000,
+                2 => 0x1000_0000_0000,
+                _ => 0,
+            }
+        })
+    }
 }
 impl<M: AddressSpace> NightreignReader<'_, '_, M> {
     /// Uses a validated Goal context's parent plus exact CSAiFunc backlink and queue owner.

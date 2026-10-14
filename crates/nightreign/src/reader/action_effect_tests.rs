@@ -362,3 +362,76 @@ fn think_queue_rejects_foreign_interface_and_record_changes() {
     fixture.replacement = Some((0xc0000, vec![0; 40]));
     assert!(fixture.core().think_action_queue(0x10000, 2).is_err());
 }
+
+#[test]
+fn think_transitions_preserve_unknown_tags_and_do_not_guess_from_flags() {
+    use crate::think_actions::ThinkPredicateTransition;
+    let mut fixture = think_queue_fixture();
+    fixture.dword(0xc0024, 0);
+    fixture.dword(0xc1024, u32::MAX);
+    let queue = fixture
+        .core()
+        .think_action_queue(0x10000, 2)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        queue.events[0].predicate_transition(),
+        ThinkPredicateTransition::NoChange
+    );
+    assert_eq!(
+        queue.events[1].predicate_transition(),
+        ThinkPredicateTransition::Unknown(u32::MAX)
+    );
+    assert_eq!(queue.events[0].raw_flag, 0xaa);
+    assert_eq!(queue.predicate_event_mask(), 0);
+}
+
+#[test]
+fn think_transition_queries_use_key_b_and_native_list_order() {
+    use crate::think_actions::{
+        ThinkPredicateEdge as Edge, ThinkPredicateTransition as Transition,
+    };
+    let mut fixture = think_queue_fixture();
+    fixture.dword(0xc001c, 0);
+    fixture.dword(0xc1024, 1);
+    fixture.dword(0xc101c, u32::MAX);
+    let queue = fixture
+        .core()
+        .think_action_queue(0x10000, 2)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        queue.events[0].predicate_transition(),
+        Transition::BecameTrue
+    );
+    assert_eq!(queue.first_transition_key_b(Edge::BecameTrue), Some(0));
+    assert_eq!(queue.first_transition_key_b(Edge::BecameFalse), None);
+    assert!(queue.has_transition_for_key_b(Edge::BecameTrue, u32::MAX));
+    assert!(queue.has_transition_for_key_b(Edge::BecameTrue, 0));
+    assert!(!queue.has_transition_for_key_b(Edge::BecameTrue, 100)); // key A is not the queried key.
+    assert!(!queue.has_transition_for_key_b(Edge::BecameFalse, u32::MAX));
+}
+
+#[test]
+fn think_transition_mask_is_only_the_two_queue_produced_bits() {
+    use crate::think_actions::{
+        ThinkPredicateEdge as Edge, ThinkPredicateTransition as Transition,
+    };
+    let fixture = think_queue_fixture();
+    let mut queue = fixture
+        .core()
+        .think_action_queue(0x10000, 2)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        queue.events[1].predicate_transition(),
+        Transition::BecameFalse
+    );
+    assert!(queue.has_transition_for_key_b(Edge::BecameFalse, 42));
+    assert_eq!(queue.predicate_event_mask(), (1u64 << 43) | (1u64 << 44));
+    queue.events[0].raw_tag = 99;
+    assert_eq!(queue.predicate_event_mask(), 1u64 << 44);
+    queue.events.clear();
+    assert_eq!(queue.predicate_event_mask(), 0);
+    assert_eq!(queue.first_transition_key_b(Edge::BecameFalse), None);
+}

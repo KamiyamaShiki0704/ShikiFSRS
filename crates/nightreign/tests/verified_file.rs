@@ -343,6 +343,17 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(queue.interface_address, 0x320000);
     assert_eq!(queue.events[0].raw_key_b, 42);
     assert_eq!(queue.events[0].raw_tag, 2);
+    use shikifsrs_nightreign::think_actions::{ThinkPredicateEdge, ThinkPredicateTransition};
+    assert_eq!(
+        queue.events[0].predicate_transition(),
+        ThinkPredicateTransition::BecameFalse
+    );
+    assert!(queue.has_transition_for_key_b(ThinkPredicateEdge::BecameFalse, 42));
+    assert_eq!(
+        queue.first_transition_key_b(ThinkPredicateEdge::BecameTrue),
+        None
+    );
+    assert_eq!(queue.predicate_event_mask(), 1u64 << 44);
     assert_eq!(state.is_local_player, Some(true));
     assert_eq!(state.attributes.health.current, 100);
     assert_eq!(state.attributes.stamina.current, -50);
