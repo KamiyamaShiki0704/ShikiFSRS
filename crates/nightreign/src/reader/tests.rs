@@ -1,4 +1,6 @@
 use super::*;
+#[path = "action_effect_tests.rs"]
+mod action_effect_tests;
 use std::{cell::RefCell, collections::BTreeMap};
 
 #[derive(Default)]
@@ -574,6 +576,7 @@ fn schema_fixture(format: u8) -> Fixture {
     let mut fixture = param_rows_fixture(format, 2);
     fixture.put(0x30008, &9u16.to_le_bytes());
     fixture.put(0x3002c, &[0]);
+    fixture.put(0x3002f, &[0]);
     let mode = format & 0x7f;
     let wide = mode == 4 || (mode == 5 && format & 0x80 != 0);
     let start = if mode == 2 { 0x30 } else { 0x40 };
@@ -648,10 +651,22 @@ fn param_schema_rejects_version_type_endianness_and_size_mismatches() {
 }
 #[test]
 fn param_single_row_metadata_is_not_promoted_to_stride_evidence() {
-    let fixture = schema_fixture(4);
+    let mut fixture = schema_fixture(4);
     let mut rows = fixture.core().parameter_rows(0x10000, 8).unwrap();
     rows.native_row_count = 1;
     rows.rows.truncate(1);
+    fixture.put(0x3000a, &1u16.to_le_bytes());
     let schema = fixture.core().parameter_schema(&rows).unwrap();
     assert!(!schema.has_row_stride_evidence());
+    schema
+        .check_definition(crate::parameter_fields::npc::HP.definition())
+        .unwrap();
+    assert!(
+        schema
+            .check_definition_with_policy(
+                crate::parameter_fields::npc::HP.definition(),
+                crate::parameter_schema::SchemaPolicy::RequireCompleteStride
+            )
+            .is_err()
+    );
 }

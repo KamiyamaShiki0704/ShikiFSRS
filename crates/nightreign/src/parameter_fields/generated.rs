@@ -464,6 +464,50 @@ pub(crate) static DEFINITIONS: &[FieldDefinition] = &[
         packed_size: 464,
     },
     FieldDefinition {
+        table: "AtkParam_Npc",
+        native_name: "spEffectId1",
+        param_type: "ATK_PARAM_ST",
+        slot: 7,
+        offset: 28,
+        width: 4,
+        bit: None,
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
+        table: "AtkParam_Npc",
+        native_name: "spEffectId2",
+        param_type: "ATK_PARAM_ST",
+        slot: 7,
+        offset: 32,
+        width: 4,
+        bit: None,
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
+        table: "AtkParam_Npc",
+        native_name: "spEffectId3",
+        param_type: "ATK_PARAM_ST",
+        slot: 7,
+        offset: 36,
+        width: 4,
+        bit: None,
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
+        table: "AtkParam_Npc",
+        native_name: "spEffectId4",
+        param_type: "ATK_PARAM_ST",
+        slot: 7,
+        offset: 40,
+        width: 4,
+        bit: None,
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
         table: "AtkParam_Pc",
         native_name: "hit0_Radius",
         param_type: "ATK_PARAM_ST",
@@ -515,6 +559,50 @@ pub(crate) static DEFINITIONS: &[FieldDefinition] = &[
         offset: 126,
         width: 1,
         bit: Some(1),
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
+        table: "AtkParam_Pc",
+        native_name: "spEffectId1",
+        param_type: "ATK_PARAM_ST",
+        slot: 8,
+        offset: 28,
+        width: 4,
+        bit: None,
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
+        table: "AtkParam_Pc",
+        native_name: "spEffectId2",
+        param_type: "ATK_PARAM_ST",
+        slot: 8,
+        offset: 32,
+        width: 4,
+        bit: None,
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
+        table: "AtkParam_Pc",
+        native_name: "spEffectId3",
+        param_type: "ATK_PARAM_ST",
+        slot: 8,
+        offset: 36,
+        width: 4,
+        bit: None,
+        data_version: 5,
+        packed_size: 464,
+    },
+    FieldDefinition {
+        table: "AtkParam_Pc",
+        native_name: "spEffectId4",
+        param_type: "ATK_PARAM_ST",
+        slot: 8,
+        offset: 40,
+        width: 4,
+        bit: None,
         data_version: 5,
         packed_size: 464,
     },
@@ -662,6 +750,281 @@ pub(crate) static DEFINITIONS: &[FieldDefinition] = &[
         packed_size: 976,
     },
     FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "motionInterval",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 12,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "behaviorId",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 152,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "replaceSpEffectId",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 292,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "cycleOccurrenceSpEffectId",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 296,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "atkOccurrenceSpEffectId",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 300,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "animIdOffset",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 240,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "categoryPriority",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 320,
+        width: 1,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "saveCategory",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 321,
+        width: 1,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "effectTargetSelf",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 351,
+        width: 1,
+        bit: Some(0),
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "effectTargetFriend",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 351,
+        width: 1,
+        bit: Some(1),
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "effectTargetEnemy",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 351,
+        width: 1,
+        bit: Some(2),
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "BehaviorParam",
+        native_name: "variationId",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 12,
+        offset: 0,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam",
+        native_name: "behaviorJudgeId",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 12,
+        offset: 4,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam",
+        native_name: "refType",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 12,
+        offset: 9,
+        width: 1,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam",
+        native_name: "refId",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 12,
+        offset: 12,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam",
+        native_name: "consumeSA",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 12,
+        offset: 16,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam",
+        native_name: "stamina",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 12,
+        offset: 20,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam",
+        native_name: "category",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 12,
+        offset: 28,
+        width: 1,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam_PC",
+        native_name: "variationId",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 13,
+        offset: 0,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam_PC",
+        native_name: "behaviorJudgeId",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 13,
+        offset: 4,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam_PC",
+        native_name: "refType",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 13,
+        offset: 9,
+        width: 1,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam_PC",
+        native_name: "refId",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 13,
+        offset: 12,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam_PC",
+        native_name: "consumeSA",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 13,
+        offset: 16,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam_PC",
+        native_name: "stamina",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 13,
+        offset: 20,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
+        table: "BehaviorParam_PC",
+        native_name: "category",
+        param_type: "BEHAVIOR_PARAM_ST",
+        slot: 13,
+        offset: 28,
+        width: 1,
+        bit: None,
+        data_version: 2,
+        packed_size: 32,
+    },
+    FieldDefinition {
         table: "NpcThinkParam",
         native_name: "searchEye_dist",
         param_type: "NPC_THINK_PARAM_ST",
@@ -770,39 +1133,78 @@ pub mod npc_attack {
     pub const SP_EFFECT_ID0: Field<i32> = Field::new(&DEFINITIONS[39]);
     pub const ATK_DIR_FOR_SFX: Field<i8> = Field::new(&DEFINITIONS[40]);
     pub const DISABLE_STAMINA_ATTACK: Field<bool> = Field::new(&DEFINITIONS[41]);
+    pub const SP_EFFECT_ID1: Field<i32> = Field::new(&DEFINITIONS[42]);
+    pub const SP_EFFECT_ID2: Field<i32> = Field::new(&DEFINITIONS[43]);
+    pub const SP_EFFECT_ID3: Field<i32> = Field::new(&DEFINITIONS[44]);
+    pub const SP_EFFECT_ID4: Field<i32> = Field::new(&DEFINITIONS[45]);
 }
 pub mod player_attack {
     use super::{DEFINITIONS, Field};
-    pub const HIT0_RADIUS: Field<f32> = Field::new(&DEFINITIONS[42]);
-    pub const HIT_STOP_TIME: Field<f32> = Field::new(&DEFINITIONS[43]);
-    pub const SP_EFFECT_ID0: Field<i32> = Field::new(&DEFINITIONS[44]);
-    pub const ATK_DIR_FOR_SFX: Field<i8> = Field::new(&DEFINITIONS[45]);
-    pub const DISABLE_STAMINA_ATTACK: Field<bool> = Field::new(&DEFINITIONS[46]);
+    pub const HIT0_RADIUS: Field<f32> = Field::new(&DEFINITIONS[46]);
+    pub const HIT_STOP_TIME: Field<f32> = Field::new(&DEFINITIONS[47]);
+    pub const SP_EFFECT_ID0: Field<i32> = Field::new(&DEFINITIONS[48]);
+    pub const ATK_DIR_FOR_SFX: Field<i8> = Field::new(&DEFINITIONS[49]);
+    pub const DISABLE_STAMINA_ATTACK: Field<bool> = Field::new(&DEFINITIONS[50]);
+    pub const SP_EFFECT_ID1: Field<i32> = Field::new(&DEFINITIONS[51]);
+    pub const SP_EFFECT_ID2: Field<i32> = Field::new(&DEFINITIONS[52]);
+    pub const SP_EFFECT_ID3: Field<i32> = Field::new(&DEFINITIONS[53]);
+    pub const SP_EFFECT_ID4: Field<i32> = Field::new(&DEFINITIONS[54]);
 }
 pub mod initial {
     use super::{DEFINITIONS, Field};
-    pub const SOUL: Field<i32> = Field::new(&DEFINITIONS[47]);
-    pub const EQUIP_WEP_RIGHT_1: Field<i32> = Field::new(&DEFINITIONS[48]);
-    pub const EQUIP_HELM: Field<i32> = Field::new(&DEFINITIONS[49]);
+    pub const SOUL: Field<i32> = Field::new(&DEFINITIONS[55]);
+    pub const EQUIP_WEP_RIGHT_1: Field<i32> = Field::new(&DEFINITIONS[56]);
+    pub const EQUIP_HELM: Field<i32> = Field::new(&DEFINITIONS[57]);
 }
 pub mod effect {
     use super::{DEFINITIONS, Field};
-    pub const EFFECT_ENDURANCE: Field<f32> = Field::new(&DEFINITIONS[50]);
-    pub const MAX_HP_RATE: Field<f32> = Field::new(&DEFINITIONS[51]);
-    pub const MAX_MP_RATE: Field<f32> = Field::new(&DEFINITIONS[52]);
-    pub const MAX_STAMINA_RATE: Field<f32> = Field::new(&DEFINITIONS[53]);
-    pub const CHANGE_HP_RATE: Field<f32> = Field::new(&DEFINITIONS[54]);
-    pub const CHANGE_HP_POINT: Field<i32> = Field::new(&DEFINITIONS[55]);
-    pub const CHANGE_MP_POINT: Field<i32> = Field::new(&DEFINITIONS[56]);
-    pub const CHANGE_STAMINA_POINT: Field<i32> = Field::new(&DEFINITIONS[57]);
-    pub const SP_CATEGORY: Field<i16> = Field::new(&DEFINITIONS[58]);
-    pub const STATE_INFO: Field<u16> = Field::new(&DEFINITIONS[59]);
+    pub const EFFECT_ENDURANCE: Field<f32> = Field::new(&DEFINITIONS[58]);
+    pub const MAX_HP_RATE: Field<f32> = Field::new(&DEFINITIONS[59]);
+    pub const MAX_MP_RATE: Field<f32> = Field::new(&DEFINITIONS[60]);
+    pub const MAX_STAMINA_RATE: Field<f32> = Field::new(&DEFINITIONS[61]);
+    pub const CHANGE_HP_RATE: Field<f32> = Field::new(&DEFINITIONS[62]);
+    pub const CHANGE_HP_POINT: Field<i32> = Field::new(&DEFINITIONS[63]);
+    pub const CHANGE_MP_POINT: Field<i32> = Field::new(&DEFINITIONS[64]);
+    pub const CHANGE_STAMINA_POINT: Field<i32> = Field::new(&DEFINITIONS[65]);
+    pub const SP_CATEGORY: Field<i16> = Field::new(&DEFINITIONS[66]);
+    pub const STATE_INFO: Field<u16> = Field::new(&DEFINITIONS[67]);
+    pub const MOTION_INTERVAL: Field<f32> = Field::new(&DEFINITIONS[68]);
+    pub const BEHAVIOR_ID: Field<i32> = Field::new(&DEFINITIONS[69]);
+    pub const REPLACE_SP_EFFECT_ID: Field<i32> = Field::new(&DEFINITIONS[70]);
+    pub const CYCLE_OCCURRENCE_SP_EFFECT_ID: Field<i32> = Field::new(&DEFINITIONS[71]);
+    pub const ATK_OCCURRENCE_SP_EFFECT_ID: Field<i32> = Field::new(&DEFINITIONS[72]);
+    pub const ANIM_ID_OFFSET: Field<i32> = Field::new(&DEFINITIONS[73]);
+    pub const CATEGORY_PRIORITY: Field<u8> = Field::new(&DEFINITIONS[74]);
+    pub const SAVE_CATEGORY: Field<i8> = Field::new(&DEFINITIONS[75]);
+    pub const EFFECT_TARGET_SELF: Field<bool> = Field::new(&DEFINITIONS[76]);
+    pub const EFFECT_TARGET_FRIEND: Field<bool> = Field::new(&DEFINITIONS[77]);
+    pub const EFFECT_TARGET_ENEMY: Field<bool> = Field::new(&DEFINITIONS[78]);
+}
+pub mod behavior {
+    use super::{DEFINITIONS, Field};
+    pub const VARIATION_ID: Field<i32> = Field::new(&DEFINITIONS[79]);
+    pub const BEHAVIOR_JUDGE_ID: Field<i32> = Field::new(&DEFINITIONS[80]);
+    pub const REF_TYPE: Field<u8> = Field::new(&DEFINITIONS[81]);
+    pub const REF_ID: Field<i32> = Field::new(&DEFINITIONS[82]);
+    pub const CONSUME_SA: Field<f32> = Field::new(&DEFINITIONS[83]);
+    pub const STAMINA: Field<i32> = Field::new(&DEFINITIONS[84]);
+    pub const CATEGORY: Field<u8> = Field::new(&DEFINITIONS[85]);
+}
+pub mod player_behavior {
+    use super::{DEFINITIONS, Field};
+    pub const VARIATION_ID: Field<i32> = Field::new(&DEFINITIONS[86]);
+    pub const BEHAVIOR_JUDGE_ID: Field<i32> = Field::new(&DEFINITIONS[87]);
+    pub const REF_TYPE: Field<u8> = Field::new(&DEFINITIONS[88]);
+    pub const REF_ID: Field<i32> = Field::new(&DEFINITIONS[89]);
+    pub const CONSUME_SA: Field<f32> = Field::new(&DEFINITIONS[90]);
+    pub const STAMINA: Field<i32> = Field::new(&DEFINITIONS[91]);
+    pub const CATEGORY: Field<u8> = Field::new(&DEFINITIONS[92]);
 }
 pub mod think {
     use super::{DEFINITIONS, Field};
-    pub const SEARCH_EYE_DIST: Field<u16> = Field::new(&DEFINITIONS[60]);
-    pub const SEARCH_EYE_ANG_Y: Field<u8> = Field::new(&DEFINITIONS[61]);
-    pub const SEARCH_EYE_ANG_X: Field<u8> = Field::new(&DEFINITIONS[62]);
-    pub const SEARCH_TARGET_LV1_FORGET_TIME: Field<f32> = Field::new(&DEFINITIONS[63]);
-    pub const ENABLE_JUMP_MOVE: Field<u8> = Field::new(&DEFINITIONS[64]);
+    pub const SEARCH_EYE_DIST: Field<u16> = Field::new(&DEFINITIONS[93]);
+    pub const SEARCH_EYE_ANG_Y: Field<u8> = Field::new(&DEFINITIONS[94]);
+    pub const SEARCH_EYE_ANG_X: Field<u8> = Field::new(&DEFINITIONS[95]);
+    pub const SEARCH_TARGET_LV1_FORGET_TIME: Field<f32> = Field::new(&DEFINITIONS[96]);
+    pub const ENABLE_JUMP_MOVE: Field<u8> = Field::new(&DEFINITIONS[97]);
 }

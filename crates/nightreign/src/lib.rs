@@ -1,4 +1,6 @@
 //! Exact-version Nightreign metadata and experimental copied object views.
+pub mod character_actions;
+pub mod character_effects;
 pub mod character_modules;
 pub mod character_operations;
 pub mod character_state;
@@ -113,6 +115,9 @@ impl<'a> NightreignFile<'a> {
         for range in state_evidence()? {
             module.code_address(range)?;
         }
+        for range in action_effect_evidence()? {
+            module.code_address(range)?;
+        }
         for (_, table) in OBJECT_TYPES {
             let expected = self.file.image().read_rva(*table, 8)?;
             let pointer = u64::from_le_bytes(expected.try_into().expect("checked width"));
@@ -153,6 +158,28 @@ pub(crate) fn state_evidence() -> Result<Vec<CodeRange>> {
         .collect()
 }
 
+pub(crate) fn action_effect_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/action-effect-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR action/effect RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR action/effect RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR action/effect extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR action/effect extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
+}
+
 pub(crate) fn character_evidence() -> Result<Vec<CodeRange>> {
     include_str!("../data/character-code.csv")
         .lines()
@@ -185,6 +212,7 @@ fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> 
         (".?AVCSChrPhysicsModule@CS@@", 0x2c13720),
         (".?AVCSChrActionRequestModule@CS@@", 0x2c0c808),
         (".?AVCSChrBehaviorDataModule@CS@@", 0x2c0f278),
+        (".?AVSpecialEffect@CS@@", character_effects::EFFECT_TABLE),
     ] {
         if !image
             .vtables(name)?

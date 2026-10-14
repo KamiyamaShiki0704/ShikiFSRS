@@ -14,12 +14,21 @@ pub enum RowLayout {
     IncompleteOrdinalIndex,
     Irregular,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SchemaPolicy {
+    /// Accept matching metadata when row spacing cannot be established.
+    MetadataAndAvailableStride,
+    /// Require every ordinal and a uniform stride matching the pinned packed size.
+    RequireCompleteStride,
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParameterSchemaSnapshot {
     pub param_type: String,
     pub data_version: u16,
     pub header_address: u64,
     pub format_byte: u8,
+    pub flags_2e: u8,
+    pub paramdef_format_version: u8,
     pub row_count: u16,
     pub layout: RowLayout,
 }
@@ -27,10 +36,22 @@ impl ParameterSchemaSnapshot {
     /// Matches observable metadata and spacing. A single-row/partial-index PARAM has
     /// no stride evidence; header matching never establishes in-game acceptance.
     pub fn check_definition(&self, definition: &FieldDefinition) -> Result<()> {
+        self.check_definition_with_policy(definition, SchemaPolicy::MetadataAndAvailableStride)
+    }
+    pub fn check_definition_with_policy(
+        &self,
+        definition: &FieldDefinition,
+        policy: SchemaPolicy,
+    ) -> Result<()> {
         if self.param_type != definition.param_type || self.data_version != definition.data_version
         {
             return Err(Error::InvalidProfile(
                 "NR PARAM type/data version differs from pinned definition",
+            ));
+        }
+        if policy == SchemaPolicy::RequireCompleteStride && !self.has_row_stride_evidence() {
+            return Err(Error::InvalidProfile(
+                "NR PARAM has insufficient complete row stride evidence",
             ));
         }
         match self.layout {
@@ -82,38 +103,19 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
         self.memory.read_exact(at(8)?, &mut version)?;
         let data_version = u16::from_le_bytes(version);
         let format = self.memory.read_u8(at(0x2d)?)?;
-        if format != rows.format_byte {
+        let flags_2e = self.memory.read_u8(at(0x2e)?)?;
+        let paramdef_format_version = self.memory.read_u8(at(0x2f)?)?;
+        let mut count = [0; 2];
+        self.memory.read_exact(at(0xa)?, &mut count)?;
+        if format != rows.format_byte
+            || flags_2e != rows.flags_2e
+            || u16::from_le_bytes(count) != rows.native_row_count
+        {
             return Err(Error::InvalidProfile(
                 "NR PARAM format changed during schema inspection",
             ));
         }
-        let (param_type, type_pointer) = if format & 0x80 == 0 {
-            let mut raw = [0; 32];
-            self.memory.read_exact(at(0xc)?, &mut raw)?;
-            (decode_type(&raw)?, None)
-        } else {
-            let relative = self.u64(header, 0x10)?;
-            if relative == 0 || relative > 64 * 1024 * 1024 - 128 {
-                return Err(Error::InvalidProfile(
-                    "NR PARAM type offset is outside relative span limit",
-                ));
-            }
-            let start = at(relative)?;
-            let mut bytes = Vec::new();
-            for offset in 0..128 {
-                let byte = self
-                    .memory
-                    .read_u8(start.checked_add(offset).ok_or(Error::AddressOverflow)?)?;
-                bytes.push(byte);
-                if byte == 0 {
-                    break;
-                }
-            }
-            if bytes.last() != Some(&0) {
-                return Err(Error::InvalidProfile("unterminated NR PARAM type"));
-            }
-            (decode_type(&bytes)?, Some(relative))
-        };
+        let (param_type, type_pointer) = self.parameter_type(header, format)?;
         let mut ordered = BTreeMap::new();
         for row in &rows.rows {
             if let Some(previous) = ordered.insert(row.ordinal, row.relative_offset)
@@ -152,20 +154,58 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
         if repeated != version
             || self.memory.read_u8(at(0x2c)?)? != 0
             || self.memory.read_u8(at(0x2d)?)? != format
+            || self.memory.read_u8(at(0x2e)?)? != flags_2e
+            || self.memory.read_u8(at(0x2f)?)? != paramdef_format_version
+            || self.parameter_type(header, format)? != (param_type.clone(), type_pointer)
         {
             return Err(Error::InvalidProfile("NR PARAM schema metadata changed"));
         }
-        if let Some(relative) = type_pointer {
-            self.unchanged_u64(header, 0x10, relative)?;
+        self.memory.read_exact(at(0xa)?, &mut repeated)?;
+        if repeated != count {
+            return Err(Error::InvalidProfile("NR PARAM row count changed"));
         }
         Ok(ParameterSchemaSnapshot {
             param_type,
             data_version,
             header_address: header,
             format_byte: format,
+            flags_2e,
+            paramdef_format_version,
             row_count: rows.native_row_count,
             layout,
         })
+    }
+    fn parameter_type(&self, header: u64, format: u8) -> Result<(String, Option<u64>)> {
+        let at = |offset: u64| header.checked_add(offset).ok_or(Error::AddressOverflow);
+        if format & 0x80 == 0 {
+            let mut raw = [0; 32];
+            self.memory.read_exact(at(0xc)?, &mut raw)?;
+            Ok((decode_type(&raw)?, None))
+        } else {
+            let relative = self.u64(header, 0x10)?;
+            if relative == 0 || relative > 64 * 1024 * 1024 - 128 {
+                return Err(Error::InvalidProfile(
+                    "NR PARAM type offset is outside relative span limit",
+                ));
+            }
+            let start = at(relative)?;
+            let mut bytes = Vec::new();
+            for offset in 0..128 {
+                let byte = self
+                    .memory
+                    .read_u8(start.checked_add(offset).ok_or(Error::AddressOverflow)?)?;
+                bytes.push(byte);
+                if byte == 0 {
+                    break;
+                }
+            }
+            if bytes.last() != Some(&0) {
+                return Err(Error::InvalidProfile("unterminated NR PARAM type"));
+            }
+            let value = decode_type(&bytes)?;
+            self.unchanged_u64(header, 0x10, relative)?;
+            Ok((value, Some(relative)))
+        }
     }
 }
 fn decode_type(bytes: &[u8]) -> Result<String> {

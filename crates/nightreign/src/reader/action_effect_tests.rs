@@ -1,0 +1,160 @@
+use super::*;
+use crate::{
+    character_actions::ActionChannel, character_modules::ModuleKind, parameter_schema::SchemaPolicy,
+};
+
+fn action_fixture() -> Fixture {
+    let mut fixture = Fixture::default();
+    fixture.object(0x10000, PLAYER_TABLE);
+    fixture.word(0x101b8, 0x20000);
+    fixture.word(0x20080, 0x30000);
+    fixture.object(0x30000, ModuleKind::ActionRequests.profile().1);
+    fixture.word(0x30008, 0x10000);
+    fixture.put(0x30010, &[0; 0x149]);
+    fixture.word(0x30050, 0x30000);
+    fixture.word(0x30030, 1u64 << 63);
+    fixture.word(0x300a8, 1u64 << 9);
+    fixture.put(0x30158, &[1]);
+    fixture.dword(0x30098, 42);
+    for (offset, storage, mask) in [(0x60, 0x40000, 1u64 << 40), (0x80, 0x50000, 1u64 << 7)] {
+        fixture.word(0x30000 + offset, storage);
+        fixture.word(0x30000 + offset + 8, storage + 32);
+        fixture.word(0x30000 + offset + 16, storage + 32);
+        fixture.put(storage, &[0; 32]);
+        fixture.dword(storage, 12);
+        fixture.word(storage + 8, 0xffff);
+        fixture.dword(storage + 16, 42);
+        fixture.word(storage + 24, mask);
+    }
+    fixture
+}
+#[test]
+fn action_context_selection_and_suppression_preserve_native_predicates() {
+    let mut fixture = action_fixture();
+    let view = fixture.core().action_requests(0x10000, 2).unwrap().unwrap();
+    assert!(view.has_any_requests(ActionChannel::Default));
+    assert!(!view.has_any_requests(ActionChannel::Context)); // Native predicate uses low 37 bits.
+    assert!(view.filtered_requested(ActionChannel::Context, 7).unwrap());
+    assert!(!view.filtered_requested(ActionChannel::Default, 7).unwrap());
+    assert!(view.filtered_requested(ActionChannel::Default, 9).unwrap());
+    assert!(view.primary_requested(64).is_err());
+    fixture.dword(0x30120, 0x800);
+    let blocked = fixture.core().action_requests(0x10000, 2).unwrap().unwrap();
+    assert!(
+        !blocked
+            .filtered_requested(ActionChannel::Context, 7)
+            .unwrap()
+    );
+    fixture.word(0x30020, 1u64 << 63);
+    let primary = fixture.core().action_requests(0x10000, 2).unwrap().unwrap();
+    assert!(primary.has_any_requests(ActionChannel::Context));
+    assert!(primary.primary_requested(63).unwrap());
+}
+#[test]
+fn absent_context_uses_zero_and_disabled_context_uses_default() {
+    let mut fixture = action_fixture();
+    fixture.dword(0x30098, 99);
+    let missing = fixture.core().action_requests(0x10000, 2).unwrap().unwrap();
+    assert_eq!(missing.context_filtered_mask, 0);
+    fixture.put(0x30158, &[0]);
+    fixture.word(0x30060, u64::MAX); // Disabled storage must not be traversed.
+    let disabled = fixture.core().action_requests(0x10000, 2).unwrap().unwrap();
+    assert!(
+        disabled
+            .filtered_requested(ActionChannel::Context, 9)
+            .unwrap()
+    );
+}
+#[test]
+fn action_context_rejects_bounds_owner_and_changing_records() {
+    let mut fixture = action_fixture();
+    assert!(fixture.core().action_requests(0x10000, 1).is_err());
+    fixture.word(0x30050, 0x9999);
+    assert!(fixture.core().action_requests(0x10000, 2).is_err());
+    fixture.word(0x30050, 0x30000);
+    fixture.word(0x30068, 0x3ffff);
+    assert!(fixture.core().action_requests(0x10000, 2).is_err());
+    fixture.word(0x30068, 0x40020);
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((0x40000, vec![0; 32]));
+    assert!(fixture.core().action_requests(0x10000, 2).is_err());
+}
+fn effect_fixture() -> Fixture {
+    let mut fixture = Fixture::default();
+    fixture.object(0x10000, PLAYER_TABLE);
+    fixture.word(0x10190, 0x20000);
+    fixture.object(0x20000, crate::character_effects::EFFECT_TABLE);
+    fixture.word(0x20008, 0x30000);
+    fixture.word(0x20028, u64::MAX);
+    for (address, next, param, id, flags, state) in [
+        (0x30000, 0x40000, 0x60000, 101, 0, 449u16),
+        (0x40000, 0x50000, u64::MAX, 102, 0x80000000, 0),
+        (0x50000, 0, 0, 103, 0, 0),
+    ] {
+        fixture.put(address, &[0; 0x6c]);
+        fixture.word(address, param);
+        fixture.dword(address + 8, id);
+        fixture.word(address + 0x38, next);
+        fixture.dword(address + 0x68, flags);
+        if flags == 0 && param != 0 {
+            fixture.put(param + 0x156, &state.to_le_bytes());
+        }
+    }
+    fixture
+}
+#[test]
+fn effects_skip_excluded_nodes_and_preserve_summary_buckets() {
+    let mut fixture = effect_fixture();
+    let effects = fixture.core().special_effects(0x10000, 3).unwrap().unwrap();
+    assert!(effects.contains_id(101));
+    assert!(!effects.contains_id(102));
+    assert!(effects.contains_id(103));
+    assert!(effects.contains_state(449)); // Remainder 14: top nibble at bit 60.
+    assert!(effects.contains_state(0)); // Native null PARAM comparison.
+    assert!(!effects.contains_state(434)); // Same bucket, different state.
+    assert_eq!(effects.nodes[1].state_info, None); // Excluded invalid PARAM is untouched.
+    fixture.word(0x20028, 0xf);
+    let restricted = fixture.core().special_effects(0x10000, 3).unwrap().unwrap();
+    assert!(!restricted.contains_state(449));
+    assert!(restricted.contains_state(0));
+}
+#[test]
+fn effects_reject_cycles_limits_wrong_types_and_mutation() {
+    let mut fixture = effect_fixture();
+    assert!(fixture.core().special_effects(0x10000, 2).is_err());
+    fixture.word(0x50038, 0x30000);
+    assert!(fixture.core().special_effects(0x10000, 4).is_err());
+    fixture.word(0x50038, 0);
+    fixture.object(0x20000, PLAYER_TABLE);
+    assert!(fixture.core().special_effects(0x10000, 3).is_err());
+    fixture.object(0x20000, crate::character_effects::EFFECT_TABLE);
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((0x60156, 0u16.to_le_bytes().to_vec()));
+    assert!(fixture.core().special_effects(0x10000, 3).is_err());
+}
+#[test]
+fn strict_schema_policy_rejects_partial_index_and_changing_type() {
+    let mut fixture = super::schema_fixture(4);
+    let rows = fixture.core().parameter_rows(0x10000, 8).unwrap();
+    let complete = fixture.core().parameter_schema(&rows).unwrap();
+    complete
+        .check_definition_with_policy(
+            crate::parameter_fields::npc::HP.definition(),
+            SchemaPolicy::RequireCompleteStride,
+        )
+        .unwrap();
+    let mut partial = rows.clone();
+    partial.rows.truncate(1);
+    let incomplete = fixture.core().parameter_schema(&partial).unwrap();
+    assert!(
+        incomplete
+            .check_definition_with_policy(
+                crate::parameter_fields::npc::HP.definition(),
+                SchemaPolicy::RequireCompleteStride
+            )
+            .is_err()
+    );
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((0x3000c, vec![0; 32]));
+    assert!(fixture.core().parameter_schema(&rows).is_err());
+}

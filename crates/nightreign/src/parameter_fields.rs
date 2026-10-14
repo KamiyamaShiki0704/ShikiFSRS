@@ -5,7 +5,10 @@ use shikifsrs_runtime::{Error, Result, memory::AddressSpace};
 use std::marker::PhantomData;
 
 mod generated;
-pub use generated::{camera, effect, initial, npc, npc_attack, player_attack, think, weapon};
+pub use generated::{
+    behavior, camera, effect, initial, npc, npc_attack, player_attack, player_behavior, think,
+    weapon,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FieldDefinition {
@@ -102,6 +105,25 @@ impl<M: AddressSpace> NightreignReader<'_, '_, M> {
         field: Field<T>,
         limit: usize,
     ) -> Result<Option<T>> {
+        self.parameter_field_with_policy(
+            root,
+            variant,
+            id,
+            field,
+            limit,
+            crate::parameter_schema::SchemaPolicy::MetadataAndAvailableStride,
+        )
+    }
+    /// Applies an explicit spacing-evidence policy before copying the field.
+    pub fn parameter_field_with_policy<T: Scalar>(
+        &self,
+        root: u64,
+        variant: usize,
+        id: u32,
+        field: Field<T>,
+        limit: usize,
+        policy: crate::parameter_schema::SchemaPolicy,
+    ) -> Result<Option<T>> {
         let definition = field.definition();
         if self
             .file
@@ -117,7 +139,7 @@ impl<M: AddressSpace> NightreignReader<'_, '_, M> {
         }
         let rows = self.parameter_rows(root, definition.table, variant, limit)?;
         let schema = self.core().parameter_schema(&rows)?;
-        schema.check_definition(definition)?;
+        schema.check_definition_with_policy(definition, policy)?;
         let Some(row) = rows.row(id) else {
             return Ok(None);
         };
@@ -167,6 +189,43 @@ impl<M: AddressSpace> NightreignReader<'_, '_, M> {
 mod tests {
     use super::*;
     #[test]
+    fn behavior_and_effect_links_preserve_signed_ids_and_independent_target_bits() {
+        let mut row = [0; 32];
+        row[9] = 2;
+        row[12..16].copy_from_slice(&(-1i32).to_le_bytes());
+        row[20..24].copy_from_slice(&33i32.to_le_bytes());
+        assert_eq!(behavior::REF_TYPE.read_row_bytes(&row).unwrap(), 2);
+        assert_eq!(behavior::REF_ID.read_row_bytes(&row).unwrap(), -1);
+        assert_eq!(player_behavior::STAMINA.read_row_bytes(&row).unwrap(), 33);
+        assert_eq!(behavior::REF_ID.definition().slot, 12);
+        assert_eq!(player_behavior::REF_ID.definition().slot, 13);
+        let mut effect_row = [0; 976];
+        effect_row[292..296].copy_from_slice(&(-1i32).to_le_bytes());
+        effect_row[351] = 5;
+        assert_eq!(
+            effect::REPLACE_SP_EFFECT_ID
+                .read_row_bytes(&effect_row)
+                .unwrap(),
+            -1
+        );
+        assert!(
+            effect::EFFECT_TARGET_SELF
+                .read_row_bytes(&effect_row)
+                .unwrap()
+        );
+        assert!(
+            !effect::EFFECT_TARGET_FRIEND
+                .read_row_bytes(&effect_row)
+                .unwrap()
+        );
+        assert!(
+            effect::EFFECT_TARGET_ENEMY
+                .read_row_bytes(&effect_row)
+                .unwrap()
+        );
+        assert_eq!(effect::STATE_INFO.definition().offset, 0x156);
+    }
+    #[test]
     fn pinned_nr_scalar_types_preserve_signed_values_and_float_bits() {
         let mut npc_row = vec![0; 816];
         npc_row[36..40].copy_from_slice(&1234u32.to_le_bytes());
@@ -203,7 +262,7 @@ mod tests {
         assert!(weapon::ENABLE_GUARD.read_row_bytes(&[0; 261]).is_err());
         assert_eq!(npc_attack::ATK_DIR_FOR_SFX.definition().slot, 7);
         assert_eq!(player_attack::ATK_DIR_FOR_SFX.definition().slot, 8);
-        assert_eq!(definitions().len(), 65);
+        assert_eq!(definitions().len(), 98);
         assert_eq!(npc::WEIGHT.definition().width, 4);
     }
     #[test]

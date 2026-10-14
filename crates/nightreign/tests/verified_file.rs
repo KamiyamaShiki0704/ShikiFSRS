@@ -225,6 +225,7 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x140349, &[0x10]);
     fixture.put(0x140008, &9u16.to_le_bytes());
     fixture.put(0x14002c, &[0]);
+    fixture.put(0x14002f, &[0]);
     let mut type_name = [0; 32];
     type_name[..12].copy_from_slice(b"NPC_PARAM_ST");
     fixture.put(0x14000c, &type_name);
@@ -240,15 +241,46 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
             .collect::<Vec<_>>(),
     );
     fixture.word(0x474e8, 0x50000);
+    fixture.word(0x150080, 0x180000);
+    fixture.object(0x180000, 0x2c0c808);
+    fixture.word(0x180008, 0x50000);
+    fixture.put(0x180010, &[0; 0x149]);
+    fixture.word(0x180050, 0x180000);
+    fixture.word(0x180020, 1u64 << 7);
+    fixture.word(0x50190, 0x190000);
+    fixture.object(0x190000, 0x2c1b5d8);
+    fixture.word(0x190008, 0x1a0000);
+    fixture.word(0x190028, u64::MAX);
+    fixture.put(0x1a0000, &[0; 0x6c]);
+    fixture.word(0x1a0000, 0x1b0000);
+    fixture.dword(0x1a0008, 123);
+    fixture.put(0x1b0156, &449u16.to_le_bytes());
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
     assert_eq!(state.is_local_player, Some(true));
     assert_eq!(state.attributes.health.current, 100);
     assert_eq!(state.attributes.stamina.current, -50);
+    let actions = reader.action_requests(0x50000, 8).unwrap().unwrap();
+    assert!(actions.primary_requested(7).unwrap());
+    let effects = reader.special_effects(0x50000, 8).unwrap().unwrap();
+    assert!(effects.contains_id(123));
+    assert!(effects.contains_state(449));
     let schema = reader.parameter_schema(0x70000, "NpcParam", 0, 8).unwrap();
     assert_eq!(schema.data_version, 9);
     assert!(!schema.has_row_stride_evidence());
+    assert!(
+        reader
+            .parameter_field_with_policy(
+                0x70000,
+                0,
+                99,
+                parameter_fields::npc::HP,
+                8,
+                shikifsrs_nightreign::parameter_schema::SchemaPolicy::RequireCompleteStride
+            )
+            .is_err()
+    );
     assert_eq!(
         reader
             .character_module(0x50000, ModuleKind::Physics)
