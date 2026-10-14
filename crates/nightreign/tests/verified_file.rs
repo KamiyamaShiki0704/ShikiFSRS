@@ -29,6 +29,12 @@ impl MappedFixture<'_> {
 
 impl AddressSpace for MappedFixture<'_> {
     fn read_exact(&self, address: u64, output: &mut [u8]) -> Result<()> {
+        if (0..output.len()).all(|offset| self.objects.contains_key(&(address + offset as u64))) {
+            for (offset, byte) in output.iter_mut().enumerate() {
+                *byte = self.objects[&(address + offset as u64)];
+            }
+            return Ok(());
+        }
         if let Some(rva) = address
             .checked_sub(self.base)
             .and_then(|rva| u32::try_from(rva).ok())
@@ -39,7 +45,7 @@ impl AddressSpace for MappedFixture<'_> {
             if output.len() == 8
                 && [
                     0x2cdf868, 0x2ce3fe8, 0x2ce4038, 0x2c1b930, 0x2c15d70, 0x2c307f8, 0x2c18120,
-                    0x2c0ba90, 0x2cb1e08, 0x2cade48,
+                    0x2c0ba90, 0x2cb1e08, 0x2cade48, 0x2bda590,
                 ]
                 .contains(&rva)
             {
@@ -114,7 +120,84 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.dword(0x70080 + 6 * 72, 1);
     fixture.word(0x70088 + 6 * 72, 0x80000);
     fixture.object(0x80000, 0x2cade48);
+    // Exact direct roots are loader-relocated synthetic slots, not native singleton calls.
+    for (rva, address) in [
+        (0x4434088, 0x10000),
+        (0x3c0f0a8, 0x30000),
+        (0x3c28880, 0x70000),
+        (0x4707290, 0x90000),
+    ] {
+        fixture.word(fixture.base + rva, address);
+    }
+    fixture.dword(0x20054, 0xab00009b);
+    fixture.object(0x90000, 0x32e8478);
+    fixture.word(0x90008, 0xa0000);
+    fixture.put(0x90038, &[0]);
+    fixture.word(0x90040, 0xb0000);
+    fixture.word(0x90048, 0xc0000);
+    fixture.word(0xc0018, 0xd0000);
+    fixture.word(0xd0008, 0xe0000);
+    fixture.word(0xd0010, 1);
+    fixture.put(0xe0019, &[1]);
+    fixture.word(0xe0008, 0xe1000);
+    fixture.word(0xe1000, 0xe0000);
+    fixture.word(0xe1008, 0xe0000);
+    fixture.word(0xe1010, 0xe0000);
+    fixture.put(0xe1019, &[0]);
+    fixture.dword(0xe1020, 0xab00009b);
+    fixture.word(0xe1028, 0xf0000);
+    fixture.word(0xf0010, 0x110000);
+    fixture.word(0xf0018, 0x110020);
+    fixture.word(0x110008, 0x120000);
+    fixture.word(0x80080, 0x130000);
+    fixture.word(0x130080, 0x140000);
+    fixture.put(0x14000a, &1u16.to_le_bytes());
+    fixture.put(0x14002d, &[4, 2]);
+    fixture.dword(0x13fff0, 0x101);
+    fixture.dword(0x13fff4, 1);
+    fixture.dword(0x140110, 99);
+    fixture.dword(0x140114, 0);
+    fixture.word(0x140048, 0x200);
+    fixture.put(0x140200, &[1, 2, 3, 4]);
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
+    use shikifsrs_nightreign::roots::RootKind;
+    assert_eq!(reader.root(RootKind::TaskGroups).unwrap(), Some(0x10000));
+    assert_eq!(reader.root(RootKind::World).unwrap(), Some(0x30000));
+    assert_eq!(reader.root(RootKind::Parameters).unwrap(), Some(0x70000));
+    assert_eq!(reader.group_id(155).unwrap(), Some(0xab00009b));
+    assert!(
+        reader
+            .registration_inserted(0xab00009b, 0x120000, 8)
+            .unwrap()
+    );
+    assert!(
+        !reader
+            .registration_inserted(0xab00009b, 0x130000, 8)
+            .unwrap()
+    );
+    assert_eq!(
+        reader
+            .current_parameter_rows("NpcParam", 0, 8)
+            .unwrap()
+            .unwrap()
+            .rows[0]
+            .id,
+        99
+    );
+    assert_eq!(
+        reader
+            .copy_parameter_row(0x70000, "NpcParam", 0, 99, 4, 8)
+            .unwrap()
+            .unwrap()
+            .bytes,
+        [1, 2, 3, 4]
+    );
+    assert!(
+        reader
+            .copy_parameter_row(0x70000, "NpcParam", 0, 100, 4, 8)
+            .unwrap()
+            .is_none()
+    );
     let groups = reader.task_groups(0x10000).unwrap();
     assert_eq!(groups.len(), 156);
     assert_eq!(groups[155].as_ref().unwrap().name, "Dummy");

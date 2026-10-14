@@ -21,7 +21,7 @@
     "table_end_rva": "0x2ce0c60"
   },
   "source": "Independent static extraction from the identified executable; no live execution.",
-  "runtime_status": "experimental copied object readers; no native calls or in-game validation",
+  "runtime_status": "experimental root discovery, native task registration/ownership, copied object views and runtime PARAM index/row access; no in-game validation",
   "object_types": [
     {
       "decorated_name": ".?AVCSTaskGroupImp@CS@@",
@@ -227,5 +227,88 @@
       "cap_offset": 136,
       "maximum_caps": 8
     }
-  }
+  },
+  "direct_roots": [
+    {
+      "kind": "task_groups",
+      "global_rva": "0x4434088",
+      "load_instruction_rva": "0xfec599",
+      "primary_vtable_rva": "0x2cdf868"
+    },
+    {
+      "kind": "world",
+      "global_rva": "0x3c0f0a8",
+      "load_instruction_rva": "0x8251c9",
+      "primary_vtable_rva": "0x2c1b930"
+    },
+    {
+      "kind": "parameters",
+      "global_rva": "0x3c28880",
+      "load_instruction_rva": "0xe6c254",
+      "primary_vtable_rva": "0x2cb1e08"
+    },
+    {
+      "kind": "task_system",
+      "global_rva": "0x4707290",
+      "load_instruction_rva": "0xfec5e7",
+      "primary_vtable_rva": "0x32e8478"
+    }
+  ],
+  "native_tasks": {
+    "register_rva": "0xfec580",
+    "unregister_and_native_free_rva": "0x27d8110",
+    "dispatch_flag_offset": 56,
+    "registration_queue_offset": 32,
+    "type_info_global_rva": "0x4706eb0",
+    "type_info_vtable_rva": "0x32e7718",
+    "type_info_constructor_instruction_rva": "0x109efb",
+    "sdk_vtable_slots": [
+      "native base task type metadata",
+      "scalar destructor",
+      "execute with copied FD4Time context"
+    ],
+    "invocation_vtable_rva": "0x2bda590",
+    "invocation_fields": {
+      "scalar_08": 8,
+      "group_id": 16,
+      "word_14": 20
+    },
+    "registration_record_stride": 32,
+    "registration_task_pointer_offset": 8,
+    "ownership": "SDK before acceptance; engine pending/inserted afterward; cancellation acceptance is not destruction acknowledgement",
+    "status": "experimental; no in-game validation"
+  },
+  "parameter_rows": {
+    "lookup_evidence_rva": "0xe6a6a0",
+    "cap_resource_offset": 128,
+    "resource_header_offset": 128,
+    "row_count_offset": 10,
+    "format_byte_offset": 45,
+    "flags_byte_offset": 46,
+    "index_relative_offset_field": -16,
+    "index_count_field": -12,
+    "index_alignment": 16,
+    "index_record_stride": 8,
+    "index_id_offset": 0,
+    "index_ordinal_offset": 4,
+    "formats": {
+      "2": {
+        "record_start": 48,
+        "stride": 12,
+        "data_offset_field": 4
+      },
+      "3": {
+        "record_start": 64,
+        "stride": 12,
+        "data_offset_field": 4
+      },
+      "4": "flag 0x02 selects 24-byte records and u64 data offsets; otherwise 12-byte/u32",
+      "5": "format-byte bit 0x80 and flag 0x02 select 24-byte/u64; otherwise 12-byte/u32"
+    },
+    "maximum_relative_span": 67108864,
+    "maximum_copy_bytes": 65536,
+    "status": "experimental raw index/row copying; named field schemas not provided"
+  },
+  "native_code_evidence_csv": "data/native-code.csv",
+  "native_code_evidence_sha256": "2bb83a0d5cb74a630a2853e833714d144762b6209a8d836d5500f6e5c7687d34"
 }

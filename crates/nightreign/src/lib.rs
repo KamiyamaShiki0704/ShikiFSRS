@@ -1,6 +1,11 @@
 //! Exact-version Nightreign metadata and experimental copied object views.
+#[cfg(windows)]
+pub mod current_tasks;
+pub mod native_tasks;
+pub mod parameter_rows;
 pub mod parameters;
 pub mod reader;
+pub mod roots;
 use shikifsrs_runtime::{
     Error, Result,
     memory::AddressSpace,
@@ -63,6 +68,7 @@ impl<'a> NightreignFile<'a> {
             }
         }
         validate_object_metadata(file.image())?;
+        roots::validate(file.image())?;
         let parameters = parameters::read(file.image())?;
         Ok(Self {
             file,
@@ -92,6 +98,9 @@ impl<'a> NightreignFile<'a> {
         base: u64,
     ) -> Result<reader::NightreignReader<'r, 'a, M>> {
         let module = self.file.bind(memory, base, READ_CODE)?;
+        for range in native_evidence()? {
+            module.code_address(range)?;
+        }
         for (_, table) in OBJECT_TYPES {
             let expected = self.file.image().read_rva(*table, 8)?;
             let pointer = u64::from_le_bytes(expected.try_into().expect("checked width"));
@@ -110,6 +119,28 @@ impl<'a> NightreignFile<'a> {
     }
 }
 
+pub(crate) fn native_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/native-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR native RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR native RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR native extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR native extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
+}
+
 const OBJECT_TYPES: &[(&str, u32)] = &[
     (".?AVCSTaskGroupImp@CS@@", reader::TASK_TABLE),
     (".?AVCSTaskGroupIns@CS@@", reader::GROUP_TABLE),
@@ -121,6 +152,7 @@ const OBJECT_TYPES: &[(&str, u32)] = &[
     (".?AVChrIns@CS@@", reader::CHARACTER_TABLE),
     (".?AVSoloParamRepositoryImp@CS@@", reader::PARAMETER_TABLE),
     (".?AVParamResCap@CS@@", reader::PARAMETER_CAP_TABLE),
+    (".?AVFD4Time@FD4@@", 0x2bda590),
 ];
 
 // Selected code evidence spans, including leaf getters without .pdata entries.

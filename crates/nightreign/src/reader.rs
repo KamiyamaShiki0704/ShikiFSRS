@@ -81,7 +81,7 @@ pub struct NightreignReader<'r, 'f, M> {
 }
 
 impl<M: AddressSpace> NightreignReader<'_, '_, M> {
-    fn core(&self) -> ReaderCore<'_, M> {
+    pub(crate) fn core(&self) -> ReaderCore<'_, M> {
         ReaderCore {
             memory: self.module.memory(),
             base: self.module.base(),
@@ -152,15 +152,15 @@ fn pointer(address: u64) -> Result<u64> {
 }
 
 impl<M: AddressSpace> ReaderCore<'_, M> {
-    fn u64(&self, address: u64, offset: u64) -> Result<u64> {
+    pub(crate) fn u64(&self, address: u64, offset: u64) -> Result<u64> {
         self.memory.read_u64(at(address, offset)?)
     }
 
-    fn u32(&self, address: u64, offset: u64) -> Result<u32> {
+    pub(crate) fn u32(&self, address: u64, offset: u64) -> Result<u32> {
         self.memory.read_u32(at(address, offset)?)
     }
 
-    fn check_type(&self, address: u64, allowed: &[u32]) -> Result<u32> {
+    pub(crate) fn check_type(&self, address: u64, allowed: &[u32]) -> Result<u32> {
         pointer(address)?;
         let table = self.u64(address, 0)?;
         for &rva in allowed {
@@ -171,7 +171,7 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
         Err(Error::InvalidProfile("unexpected NR object primary vtable"))
     }
 
-    fn unchanged_u64(&self, address: u64, offset: u64, expected: u64) -> Result<()> {
+    pub(crate) fn unchanged_u64(&self, address: u64, offset: u64, expected: u64) -> Result<()> {
         if self.u64(address, offset)? != expected {
             return Err(Error::InvalidProfile("NR object changed during snapshot"));
         }

@@ -300,3 +300,95 @@ fn address_overflow_is_reported_before_memory_access() {
     );
     assert!(fixture.reads.borrow().is_empty());
 }
+
+#[test]
+fn direct_roots_reject_wrong_types_and_detect_replacement() {
+    use crate::roots::RootKind;
+    let mut fixture = Fixture::default();
+    let slot = 0x140000000 + RootKind::World.profile().0 as u64;
+    fixture.word(slot, 0);
+    assert_eq!(fixture.core().root(RootKind::World).unwrap(), None);
+    fixture.word(slot, 0x10000);
+    fixture.object(0x10000, PLAYER_TABLE);
+    assert!(fixture.core().root(RootKind::World).is_err());
+    fixture.object(0x10000, WORLD_TABLE);
+    fixture.reads.borrow_mut().clear();
+    assert_eq!(fixture.core().root(RootKind::World).unwrap(), Some(0x10000));
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((slot, 0x20000u64.to_le_bytes().to_vec()));
+    assert!(fixture.core().root(RootKind::World).is_err());
+}
+
+fn param_rows_fixture(format: u8, flags: u8) -> Fixture {
+    let mut fixture = Fixture::default();
+    fixture.object(0x10000, PARAMETER_CAP_TABLE);
+    fixture.word(0x10080, 0x20000);
+    fixture.word(0x20080, 0x30000);
+    fixture.put(0x3000a, &2u16.to_le_bytes());
+    fixture.put(0x3002d, &[format, flags]);
+    fixture.dword(0x2fff0, 0x201);
+    fixture.dword(0x2fff4, 2);
+    // Native loader index aligns offset 0x201 to 0x210; ids map to opposite row ordinals.
+    fixture.dword(0x30210, 3);
+    fixture.dword(0x30214, 1);
+    fixture.dword(0x30218, 90);
+    fixture.dword(0x3021c, 0);
+    let mode = format & 0x7f;
+    let wide = flags & 2 != 0 && (mode == 4 || (mode == 5 && format & 0x80 != 0));
+    let (start, stride, data) = if mode == 2 {
+        (0x30, 12, 4)
+    } else if wide {
+        (0x40, 24, 8)
+    } else {
+        (0x40, 12, 4)
+    };
+    for ordinal in 0..2 {
+        let address = 0x30000 + start + stride * ordinal + data;
+        if wide {
+            fixture.word(address, 0x400 + ordinal * 0x20);
+        } else {
+            fixture.dword(address, (0x400 + ordinal * 0x20) as u32);
+        }
+    }
+    fixture
+}
+
+#[test]
+fn param_runtime_index_resolves_ordinals_across_all_evidenced_formats() {
+    for (format, flags) in [(2, 0), (3, 0), (4, 0), (4, 2), (5, 2), (0x85, 2)] {
+        let fixture = param_rows_fixture(format, flags);
+        let rows = fixture.core().parameter_rows(0x10000, 2).unwrap();
+        assert_eq!(rows.row(3).unwrap().ordinal, 1);
+        assert_eq!(rows.row(3).unwrap().address, 0x30420);
+        assert_eq!(rows.row(90).unwrap().address, 0x30400);
+        assert!(rows.row(4).is_none());
+    }
+}
+
+#[test]
+fn param_malformed_indices_formats_and_offsets_fail_closed() {
+    let mut fixture = param_rows_fixture(4, 2);
+    assert!(fixture.core().parameter_rows(0x10000, 1).is_err());
+    fixture.dword(0x30214, u32::MAX);
+    assert!(fixture.core().parameter_rows(0x10000, 2).is_err());
+    fixture.dword(0x30214, 1);
+    fixture.dword(0x30218, 3);
+    assert!(fixture.core().parameter_rows(0x10000, 2).is_err());
+    fixture.dword(0x30218, 90);
+    fixture.word(0x30060, u64::MAX);
+    assert!(fixture.core().parameter_rows(0x10000, 2).is_err());
+    fixture.word(0x30060, 0x420);
+    fixture.put(0x3002d, &[1]);
+    assert!(fixture.core().parameter_rows(0x10000, 2).is_err());
+}
+
+#[test]
+fn param_truncated_fields_and_changed_prefix_are_rejected() {
+    let mut fixture = param_rows_fixture(2, 0);
+    fixture.bytes.remove(&0x3021f);
+    assert!(fixture.core().parameter_rows(0x10000, 2).is_err());
+    fixture.dword(0x3021c, 0);
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((0x2fff4, 1u32.to_le_bytes().to_vec()));
+    assert!(fixture.core().parameter_rows(0x10000, 2).is_err());
+}
