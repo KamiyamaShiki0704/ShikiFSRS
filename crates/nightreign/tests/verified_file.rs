@@ -423,6 +423,16 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.dword(0x37de9c, 4001);
     fixture.dword(0x37dea0, 4001);
     fixture.put(0x37e8d8, &[1]);
+    fixture.word(0x37e8c8, 0x3e0000);
+    fixture.word(0x37e8d0, 1);
+    fixture.put(0x3e0000, &[0; 32]);
+    fixture.word(0x3e0008, 0x3f0000);
+    fixture.put(0x3e0019, &[1]);
+    fixture.put(0x3f0000, &[0; 32]);
+    fixture.word(0x3f0000, 0x3e0000);
+    fixture.word(0x3f0008, 0x3e0000);
+    fixture.word(0x3f0010, 0x3e0000);
+    fixture.dword(0x3f001c, 4001);
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
@@ -459,6 +469,18 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(request_ids.requested_id, 3001);
     assert_eq!(request_ids.resolved_id, 4001);
     assert_eq!(request_ids.raw_lookup_match_flag, 1);
+    let lookup = reader
+        .character_action_id_lookup(0x50000, request_ids.resolved_id as u32, 8)
+        .unwrap()
+        .unwrap();
+    assert_eq!(lookup.matched_node_address, Some(0x3f0000));
+    assert!(
+        !reader
+            .character_action_id_lookup(0x50000, request_ids.requested_id as u32, 8)
+            .unwrap()
+            .unwrap()
+            .contains_id()
+    );
 
     let goal_root = reader.character_goal_root(0x50000).unwrap().unwrap();
     let selected = goal_root.selected.unwrap();

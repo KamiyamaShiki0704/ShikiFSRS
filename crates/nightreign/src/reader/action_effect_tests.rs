@@ -1301,3 +1301,135 @@ fn action_id_state_rechecks_request_lookup_match_and_actor_associations() {
         );
     }
 }
+
+fn action_id_lookup_fixture() -> Fixture {
+    let mut fixture = action_id_state_fixture();
+    fixture.word(0x9e8c8, 0x200000);
+    fixture.word(0x9e8d0, 3);
+    fixture.put(0x200000, &[0; 32]);
+    fixture.word(0x200000, 0x220000);
+    fixture.word(0x200008, 0x210000);
+    fixture.word(0x200010, 0x230000);
+    fixture.put(0x200019, &[1]);
+    for (address, left, parent, right, key) in [
+        (0x210000, 0x220000, 0x200000, 0x230000, 0x80000000u32),
+        (0x220000, 0x200000, 0x210000, 0x200000, 1),
+        (0x230000, 0x200000, 0x210000, 0x200000, u32::MAX),
+    ] {
+        fixture.put(address, &[0; 32]);
+        fixture.word(address, left);
+        fixture.word(address + 8, parent);
+        fixture.word(address + 0x10, right);
+        fixture.put(address + 0x18, &[1]);
+        fixture.dword(address + 0x1c, key);
+    }
+    fixture
+}
+#[test]
+fn action_id_lookup_uses_unsigned_order_and_native_lower_bound_path() {
+    let fixture = action_id_lookup_fixture();
+    for (id, expected) in [
+        (0, None),
+        (1, Some(0x220000)),
+        (0x7fffffff, None),
+        (0x80000000, Some(0x210000)),
+        (u32::MAX, Some(0x230000)),
+    ] {
+        let result = fixture
+            .core()
+            .character_action_id_lookup(0x70000, id, 4)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.matched_node_address, expected);
+        assert_eq!(result.contains_id(), expected.is_some());
+    }
+    let exact = fixture
+        .core()
+        .character_action_id_lookup(0x70000, 0x80000000, 4)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        exact.path.iter().map(|n| n.id_bits).collect::<Vec<_>>(),
+        [0x80000000, 1]
+    );
+    assert!(
+        fixture
+            .core()
+            .character_action_id_lookup(0x70000, 0x80000000, 1)
+            .is_err()
+    );
+}
+#[test]
+fn action_id_lookup_empty_and_absent_tables_do_not_claim_animation_support() {
+    let mut fixture = action_id_lookup_fixture();
+    fixture.word(0x200008, 0x200000);
+    fixture.word(0x9e8d0, 0);
+    let empty = fixture
+        .core()
+        .character_action_id_lookup(0x70000, 1, 4)
+        .unwrap()
+        .unwrap();
+    assert!(!empty.contains_id());
+    assert!(empty.path.is_empty());
+    fixture.word(0xb00c0, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .character_action_id_lookup(0x70000, 1, 4)
+            .unwrap(),
+        None
+    );
+    assert!(
+        fixture
+            .core()
+            .character_action_id_lookup(0x70000, 1, 0)
+            .is_err()
+    );
+}
+#[test]
+fn action_id_lookup_rejects_cycles_key_order_foreign_sentinels_and_count_mismatch() {
+    for (address, value) in [(0x210000, 0x210000u64), (0x200008, 0), (0x9e8d0, 0)] {
+        let mut fixture = action_id_lookup_fixture();
+        fixture.word(address, value);
+        assert!(
+            fixture
+                .core()
+                .character_action_id_lookup(0x70000, 1, 4)
+                .is_err()
+        );
+    }
+    let mut foreign = action_id_lookup_fixture();
+    foreign.put(0x220019, &[1]);
+    assert!(
+        foreign
+            .core()
+            .character_action_id_lookup(0x70000, 1, 4)
+            .is_err()
+    );
+    let mut unordered = action_id_lookup_fixture();
+    unordered.dword(0x22001c, 0x90000000);
+    assert!(
+        unordered
+            .core()
+            .character_action_id_lookup(0x70000, 1, 4)
+            .is_err()
+    );
+}
+#[test]
+fn action_id_lookup_rechecks_nodes_header_and_container_pointers() {
+    for (address, bytes) in [
+        (0x210000, vec![0; 32]),
+        (0x200000, vec![0; 32]),
+        (0x9e8c8, 0u64.to_le_bytes().to_vec()),
+        (0x9e8d0, 0u64.to_le_bytes().to_vec()),
+    ] {
+        let mut fixture = action_id_lookup_fixture();
+        fixture.replacement = Some((address, bytes));
+        assert!(
+            fixture
+                .core()
+                .character_action_id_lookup(0x70000, 1, 4)
+                .is_err()
+        );
+    }
+}

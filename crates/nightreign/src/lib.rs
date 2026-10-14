@@ -1,4 +1,5 @@
 //! Exact-version Nightreign metadata and experimental copied object views.
+pub mod action_id_lookup;
 pub mod action_request_ids;
 pub mod builtin_goals;
 pub mod character_actions;
