@@ -1205,3 +1205,99 @@ fn builtin_goal_binding_rechecks_ids_pointers_types_and_common_words() {
         assert!(fixture.core().goal_builtin_binding(0x10000, &rows).is_err());
     }
 }
+
+fn action_id_state_fixture() -> Fixture {
+    let mut fixture = character_think_fixture();
+    fixture.word(0x9c438, 0x90000);
+    fixture.word(0x9de90, 0x90000);
+    fixture.put(0x9c440, &[0; 22]);
+    fixture.put(0x9de98, &[0; 13]);
+    fixture.put(0x9e8d8, &[1]);
+    fixture.dword(0x9c440, u32::MAX);
+    fixture.dword(0x9c448, (-7i32) as u32);
+    fixture.dword(0x9c44c, 3001);
+    fixture.dword(0x9c450, 3001);
+    fixture.put(0x9c444, &[0xaa, 0x55, 0xfe]);
+    fixture.put(0x9c454, &[1, 2]);
+    fixture.put(0x9de98, &[0xff, 1, 2]);
+    fixture.dword(0x9de9c, 4001);
+    fixture.dword(0x9dea0, 4001);
+    fixture.put(0x9dea4, &[0xab]);
+    fixture
+}
+#[test]
+fn action_id_state_separates_original_resolved_ids_and_preserves_latch_bytes() {
+    let fixture = action_id_state_fixture();
+    let state = fixture
+        .core()
+        .character_action_request_ids(0x70000)
+        .unwrap()
+        .unwrap();
+    assert_eq!(state.requested_id, 3001);
+    assert_eq!(state.resolved_id, 4001);
+    assert_eq!(state.retained_requested_id, 3001);
+    assert_eq!(state.retained_resolved_id, 4001);
+    assert_eq!(state.raw_request_word_08, -1);
+    assert_eq!(state.raw_request_word_10, -7);
+    assert_eq!(state.raw_request_flags_cde, [0xaa, 0x55, 0xfe]);
+    assert_eq!(state.raw_request_flags_1c1d, [1, 2]);
+    assert_eq!(state.raw_lookup_flags_08_0a, [0xff, 1, 2]);
+    assert_eq!(state.raw_lookup_flag_14, 0xab);
+    assert_eq!(state.raw_lookup_match_flag, 1);
+}
+#[test]
+fn action_id_state_preserves_cleared_request_and_retained_id_without_execution_claim() {
+    let mut fixture = action_id_state_fixture();
+    fixture.dword(0x9c44c, u32::MAX);
+    fixture.dword(0x9de9c, 0x80000000);
+    fixture.put(0x9e8d8, &[0]);
+    let state = fixture
+        .core()
+        .character_action_request_ids(0x70000)
+        .unwrap()
+        .unwrap();
+    assert_eq!(state.requested_id, -1);
+    assert_eq!(state.retained_requested_id, 3001);
+    assert_eq!(state.resolved_id, i32::MIN);
+    assert_eq!(state.raw_lookup_match_flag, 0);
+}
+#[test]
+fn action_id_state_absent_think_and_foreign_block_owners_are_handled() {
+    let mut fixture = action_id_state_fixture();
+    fixture.word(0xb00c0, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .character_action_request_ids(0x70000)
+            .unwrap(),
+        None
+    );
+    for address in [0x9c438, 0x9de90] {
+        let mut fixture = action_id_state_fixture();
+        fixture.word(address, 0x90008);
+        assert!(
+            fixture
+                .core()
+                .character_action_request_ids(0x70000)
+                .is_err()
+        );
+    }
+}
+#[test]
+fn action_id_state_rechecks_request_lookup_match_and_actor_associations() {
+    for (address, bytes) in [
+        (0x9c440, vec![0; 22]),
+        (0x9de98, vec![0; 13]),
+        (0x9e8d8, vec![0]),
+        (0x9de90, 0u64.to_le_bytes().to_vec()),
+    ] {
+        let mut fixture = action_id_state_fixture();
+        fixture.replacement = Some((address, bytes));
+        assert!(
+            fixture
+                .core()
+                .character_action_request_ids(0x70000)
+                .is_err()
+        );
+    }
+}
