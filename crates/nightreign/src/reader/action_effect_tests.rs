@@ -1126,3 +1126,82 @@ fn goal_parameter_zero_matches_request_plan_but_not_builtin_goal_kind_id() {
         crate::goal_parameters::EXEC_ACTION_GOAL_ID as u32
     );
 }
+
+fn builtin_rows() -> Vec<crate::builtin_goals::BuiltinGoalDefinition> {
+    crate::builtin_goals::catalog(include_str!("../../data/builtin-goals.csv")).unwrap()
+}
+fn goal_binding_fixture(id: i32) -> Fixture {
+    let mut fixture = goal_parameter_fixture();
+    let definition = builtin_rows().into_iter().find(|row| row.id == id).unwrap();
+    fixture.dword(0x100a0, id as u32);
+    fixture.word(0x100a8, 0x40000);
+    fixture.object(0x40000, definition.primary_vtable_rva);
+    fixture.put(0x400f8, &[0; 18]);
+    fixture.dword(0x400f8, id as u32);
+    fixture.dword(0x400fc, 0xaabbccdd);
+    fixture.dword(0x40100, 0x7fc12345);
+    fixture.dword(0x40104, 0x80000000);
+    fixture.put(0x40108, &0xabcdu16.to_le_bytes());
+    fixture
+}
+#[test]
+fn builtin_goal_binding_checks_concrete_kinds_and_preserves_common_raw_words() {
+    let rows = builtin_rows();
+    for id in [2034, 2035] {
+        let fixture = goal_binding_fixture(id);
+        let binding = fixture
+            .core()
+            .goal_builtin_binding(0x10000, &rows)
+            .unwrap()
+            .unwrap();
+        assert_eq!(binding.definition.id, id);
+        let implementation = binding.implementation.unwrap();
+        assert_eq!(implementation.address, 0x40000);
+        assert_eq!(implementation.raw_word_fc, 0xaabbccdd);
+        assert_eq!(implementation.raw_float_100_bits, 0x7fc12345);
+        assert_eq!(implementation.raw_float_104_bits, 0x80000000);
+        assert_eq!(implementation.raw_word_108, 0xabcd);
+    }
+}
+#[test]
+fn builtin_goal_binding_distinguishes_dynamic_kind_from_known_unbound_kind() {
+    let rows = builtin_rows();
+    let mut fixture = goal_binding_fixture(2034);
+    fixture.word(0x100a8, 0);
+    let known = fixture
+        .core()
+        .goal_builtin_binding(0x10000, &rows)
+        .unwrap()
+        .unwrap();
+    assert_eq!(known.implementation, None);
+    fixture.dword(0x100a0, 100);
+    fixture.word(0x100a8, u64::MAX); // Dynamic types are not traversed using builtin layout.
+    assert_eq!(
+        fixture.core().goal_builtin_binding(0x10000, &rows).unwrap(),
+        None
+    );
+}
+#[test]
+fn builtin_goal_binding_rejects_type_and_definition_id_disagreement() {
+    let rows = builtin_rows();
+    let mut fixture = goal_binding_fixture(2034);
+    fixture.object(0x40000, 0x2c03e90);
+    assert!(fixture.core().goal_builtin_binding(0x10000, &rows).is_err());
+    fixture.object(0x40000, crate::goal_requests::EXEC_GOAL_TABLE);
+    fixture.dword(0x400f8, 2035);
+    assert!(fixture.core().goal_builtin_binding(0x10000, &rows).is_err());
+}
+#[test]
+fn builtin_goal_binding_rechecks_ids_pointers_types_and_common_words() {
+    let rows = builtin_rows();
+    for (address, bytes) in [
+        (0x100a0, 2035u32.to_le_bytes().to_vec()),
+        (0x100a8, 0u64.to_le_bytes().to_vec()),
+        (0x40000, 0u64.to_le_bytes().to_vec()),
+        (0x400f8, vec![0; 18]),
+    ] {
+        let mut fixture = goal_binding_fixture(2034);
+        fixture.replacement = Some((address, bytes));
+        assert!(fixture.core().goal_builtin_binding(0x10000, &rows).is_err());
+    }
+}

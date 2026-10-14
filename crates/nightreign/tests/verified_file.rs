@@ -400,6 +400,20 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.dword(0x34001c, 42);
     fixture.put(0x340020, &[1]);
     fixture.dword(0x340024, 2);
+    // A separate owned context validates a concrete builtin binding without changing
+    // the dynamic root Goal ID used by earlier tree/registration fixtures.
+    fixture.word(0x3c0000, 0x370000);
+    fixture.object(0x3c0018, 0x2c025f0);
+    fixture.word(0x3c0020, 0x3c0000);
+    fixture.object(0x3c0300, 0x2bf9cf0);
+    fixture.word(0x3c0308, 0);
+    fixture.put(0x3c0310, &[0; 13]);
+    fixture.dword(0x3c00a0, 2034);
+    fixture.word(0x3c00a8, 0x3d0000);
+    fixture.object(0x3d0000, 0x2c03e48);
+    fixture.put(0x3d00f8, &[0; 18]);
+    fixture.dword(0x3d00f8, 2034);
+    fixture.dword(0x3d0100, 0x7fc12345);
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
@@ -454,6 +468,12 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(values.parameter_bits(8), 0x80000000);
     assert_eq!(values.parameter_bits(9), 0x7fc12345);
     assert_eq!(values.parameter_bits(10), 0);
+    let binding = reader.goal_builtin_binding(0x3c0000).unwrap().unwrap();
+    assert_eq!(binding.definition.name, "ExecAction");
+    assert_eq!(
+        binding.implementation.unwrap().raw_float_100_bits,
+        0x7fc12345
+    );
     for (id, expected_branch, expected_constructor) in [
         (
             shikifsrs_nightreign::goal_parameters::EXEC_ACTION_GOAL_ID,
