@@ -750,3 +750,97 @@ fn goal_root_rejects_selected_id_state_and_manager_changes() {
         assert!(fixture.core().character_goal_root(0x70000).is_err());
     }
 }
+
+fn goal_children_fixture() -> Fixture {
+    let mut fixture = goal_root_fixture(0);
+    for (child, id) in [(0x2003d0, 101), (0x2007a0, 102)] {
+        for (address, byte) in goal_fixture().bytes {
+            fixture.bytes.insert(child + address - 0x10000, byte);
+        }
+        fixture.word(child + 0x20, child);
+        fixture.word(child + 8, 0x200000);
+        fixture.dword(child + 0xa0, id);
+    }
+    fixture.word(0x200040, 0x500000);
+    fixture.word(0x200048, 2);
+    fixture.word(0x200050, 3);
+    fixture.word(0x200058, 3);
+    fixture.word(0x500000, 0x520000);
+    fixture.word(0x500008, 0x510000);
+    fixture.word(0x510008, 0x2003d0);
+    fixture.word(0x520000, 0);
+    fixture.word(0x520008, 0x2007a0);
+    fixture
+}
+#[test]
+fn goal_children_copy_wrapped_blocks_and_preserve_null_slot_positions() {
+    let fixture = goal_children_fixture();
+    let children = fixture.core().goal_children(0x200000, 3).unwrap();
+    assert_eq!(
+        children
+            .slots
+            .iter()
+            .map(|s| s.logical_index)
+            .collect::<Vec<_>>(),
+        [3, 4, 5]
+    );
+    assert_eq!(children.slots[0].pointer_slot_address, 0x510008);
+    assert_eq!(children.slots[1].context, None);
+    assert_eq!(children.first_context().unwrap().raw_goal_id, 101);
+    assert_eq!(children.slots[2].context.unwrap().raw_goal_id, 102);
+    assert_eq!(
+        children.slots[2].context.unwrap().raw_context_link_08,
+        0x200000
+    );
+}
+#[test]
+fn goal_children_empty_and_null_first_slot_follow_native_first_slot_behavior() {
+    let mut fixture = goal_children_fixture();
+    fixture.word(0x510008, 0);
+    let null_first = fixture.core().goal_children(0x200000, 3).unwrap();
+    assert_eq!(null_first.first_context(), None);
+    assert!(null_first.slots[2].context.is_some());
+    fixture.word(0x200058, 0);
+    fixture.word(0x200040, u64::MAX); // Native empty query does not dereference block metadata.
+    fixture.word(0x200048, u64::MAX);
+    fixture.word(0x200050, u64::MAX);
+    assert!(
+        fixture
+            .core()
+            .goal_children(0x200000, 3)
+            .unwrap()
+            .slots
+            .is_empty()
+    );
+}
+#[test]
+fn goal_children_reject_bounds_bad_blocks_overflow_and_foreign_owner() {
+    let fixture = goal_children_fixture();
+    assert!(fixture.core().goal_children(0x200000, 2).is_err());
+    assert!(fixture.core().goal_children(0x200000, 0).is_err());
+    for (address, value) in [
+        (0x200048, 3u64),
+        (0x500008, 0),
+        (0x200050, u64::MAX),
+        (0x510008, 0x200000),
+        (0x2003d0, 0x90008),
+    ] {
+        let mut fixture = goal_children_fixture();
+        fixture.word(address, value);
+        assert!(fixture.core().goal_children(0x200000, 3).is_err());
+    }
+}
+#[test]
+fn goal_children_recheck_maps_slots_ids_and_context_links() {
+    for (address, bytes) in [
+        (0x500008, 0u64.to_le_bytes().to_vec()),
+        (0x510008, 0u64.to_le_bytes().to_vec()),
+        (0x200058, 0u64.to_le_bytes().to_vec()),
+        (0x200470, 999u32.to_le_bytes().to_vec()),
+        (0x2003d8, 0u64.to_le_bytes().to_vec()),
+    ] {
+        let mut fixture = goal_children_fixture();
+        fixture.replacement = Some((address, bytes));
+        assert!(fixture.core().goal_children(0x200000, 3).is_err());
+    }
+}

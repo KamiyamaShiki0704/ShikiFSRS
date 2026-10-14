@@ -304,6 +304,22 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x201156, &449u16.to_le_bytes());
     fixture.word(0x300000, 0x370000);
     fixture.dword(0x3000a0, 100);
+    fixture.word(0x300040, 0x380000);
+    fixture.word(0x300048, 2);
+    fixture.word(0x300050, 3);
+    fixture.word(0x300058, 2);
+    fixture.word(0x380008, 0x390000);
+    fixture.word(0x380000, 0x3a0000);
+    fixture.word(0x390008, 0x3003d0);
+    fixture.word(0x3a0000, 0);
+    fixture.word(0x3003d0, 0x370000);
+    fixture.word(0x3003d8, 0x300000);
+    fixture.object(0x3003e8, 0x2c025f0);
+    fixture.word(0x3003f0, 0x3003d0);
+    fixture.dword(0x300470, 101);
+    fixture.object(0x3006d0, 0x2bf9cf0);
+    fixture.word(0x3006d8, 0);
+    fixture.put(0x3006e0, &[0; 13]);
     fixture.word(0x370040, 0x370000);
     fixture.word(0x370048, 0x370028);
     fixture.put(0x370050, &[0; 9]);
@@ -384,6 +400,11 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(selected.slot_index, 0);
     assert_eq!(selected.raw_goal_id, 100);
     assert_eq!(selected.control.context_address, queue.context_address);
+    let children = reader
+        .goal_children(selected.control.context_address, 8)
+        .unwrap();
+    assert_eq!(children.first_context().unwrap().raw_goal_id, 101);
+    assert_eq!(children.slots[1].context, None);
     assert!(
         reader
             .think_self_effect_predicate(0x300000, 123, 8)
