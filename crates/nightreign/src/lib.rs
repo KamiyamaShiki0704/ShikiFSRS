@@ -1,10 +1,13 @@
 //! Exact-version Nightreign metadata and experimental copied object views.
 pub mod character_modules;
+pub mod character_operations;
+pub mod character_state;
 #[cfg(windows)]
 pub mod current_tasks;
 pub mod native_tasks;
 pub mod parameter_fields;
 pub mod parameter_rows;
+pub mod parameter_schema;
 pub mod parameters;
 pub mod reader;
 pub mod roots;
@@ -107,6 +110,9 @@ impl<'a> NightreignFile<'a> {
         for range in character_evidence()? {
             module.code_address(range)?;
         }
+        for range in state_evidence()? {
+            module.code_address(range)?;
+        }
         for (_, table) in OBJECT_TYPES {
             let expected = self.file.image().read_rva(*table, 8)?;
             let pointer = u64::from_le_bytes(expected.try_into().expect("checked width"));
@@ -123,6 +129,28 @@ impl<'a> NightreignFile<'a> {
         }
         Ok(reader::NightreignReader { module, file: self })
     }
+}
+
+pub(crate) fn state_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/state-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR state RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR state RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR state extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR state extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
 }
 
 pub(crate) fn character_evidence() -> Result<Vec<CodeRange>> {

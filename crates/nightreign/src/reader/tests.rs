@@ -516,3 +516,142 @@ fn quaternion_matrix_matches_statically_emulated_native_rotation() {
     pose.rotation_xyzw = [f32::INFINITY, 0.0, 0.0, 1.0];
     assert!(pose.rigid_matrix().is_err());
 }
+
+fn attribute_fixture() -> Fixture {
+    use crate::character_modules::ModuleKind;
+    let mut fixture = Fixture::default();
+    fixture.object(0x10000, PLAYER_TABLE);
+    fixture.word(0x101b8, 0x20000);
+    fixture.word(0x20000, 0x30000);
+    fixture.object(0x30000, ModuleKind::Data.profile().1);
+    fixture.word(0x30008, 0x10000);
+    let words = [100i32, 120, 130, 140, 20, 25, 30, -50, 90, 100];
+    fixture.put(
+        0x30140,
+        &words
+            .into_iter()
+            .flat_map(i32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture.word(
+        0x140000000 + crate::roots::RootKind::World.profile().0 as u64,
+        0x40000,
+    );
+    fixture.object(0x40000, WORLD_TABLE);
+    fixture.word(0x574e8, 0x10000);
+    fixture
+}
+#[test]
+fn resource_attributes_preserve_negative_stamina_and_local_identity() {
+    let fixture = attribute_fixture();
+    let state = fixture.core().character_state(0x10000).unwrap().unwrap();
+    assert_eq!(state.attributes.health.current, 100);
+    assert_eq!(state.attributes.health.effective_limit, 120);
+    assert_eq!(state.attributes.focus.current, 20);
+    assert_eq!(state.attributes.stamina.current, -50);
+    assert_eq!(state.is_local_player, Some(true));
+    assert!(!state.attributes.health_depleted());
+}
+#[test]
+fn resource_attribute_replacement_and_unknown_world_fail_or_remain_unknown() {
+    let mut fixture = attribute_fixture();
+    let world = 0x140000000 + crate::roots::RootKind::World.profile().0 as u64;
+    fixture.word(world, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .character_state(0x10000)
+            .unwrap()
+            .unwrap()
+            .is_local_player,
+        None
+    );
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((0x30140, vec![0; 40]));
+    assert!(fixture.core().character_attributes(0x10000).is_err());
+}
+fn schema_fixture(format: u8) -> Fixture {
+    let mut fixture = param_rows_fixture(format, 2);
+    fixture.put(0x30008, &9u16.to_le_bytes());
+    fixture.put(0x3002c, &[0]);
+    let mode = format & 0x7f;
+    let wide = mode == 4 || (mode == 5 && format & 0x80 != 0);
+    let start = if mode == 2 { 0x30 } else { 0x40 };
+    let stride = if wide { 24 } else { 12 };
+    let data = if wide { 8 } else { 4 };
+    if wide {
+        fixture.word(0x30000 + start + stride + data, 0x730);
+    } else {
+        fixture.dword(0x30000 + start + stride + data, 0x730);
+    }
+    if format & 0x80 == 0 {
+        let mut name = [0; 32];
+        name[..12].copy_from_slice(b"NPC_PARAM_ST");
+        fixture.put(0x3000c, &name);
+    } else {
+        fixture.word(0x30010, 0x900);
+        fixture.put(0x30900, b"NPC_PARAM_ST\0");
+    }
+    fixture
+}
+#[test]
+fn param_schema_checks_fixed_and_out_of_line_type_names_and_stride() {
+    use crate::parameter_fields::npc;
+    for format in [4, 0x84] {
+        let fixture = schema_fixture(format);
+        let rows = fixture.core().parameter_rows(0x10000, 8).unwrap();
+        let schema = fixture.core().parameter_schema(&rows).unwrap();
+        schema.check_definition(npc::HP.definition()).unwrap();
+        assert!(schema.has_row_stride_evidence());
+        assert_eq!(schema.param_type, "NPC_PARAM_ST");
+        assert_eq!(schema.data_version, 9);
+    }
+}
+#[test]
+fn param_schema_rejects_version_type_endianness_and_size_mismatches() {
+    use crate::parameter_fields::npc;
+    let mut fixture = schema_fixture(4);
+    let rows = fixture.core().parameter_rows(0x10000, 8).unwrap();
+    fixture.put(0x30008, &8u16.to_le_bytes());
+    assert!(
+        fixture
+            .core()
+            .parameter_schema(&rows)
+            .unwrap()
+            .check_definition(npc::HP.definition())
+            .is_err()
+    );
+    fixture.put(0x30008, &9u16.to_le_bytes());
+    fixture.put(0x3000c, b"BAD_PARAM_ST");
+    assert!(
+        fixture
+            .core()
+            .parameter_schema(&rows)
+            .unwrap()
+            .check_definition(npc::HP.definition())
+            .is_err()
+    );
+    fixture.put(0x3000c, b"NPC_PARAM_ST");
+    fixture.put(0x3002c, &[255]);
+    assert!(fixture.core().parameter_schema(&rows).is_err());
+    fixture.put(0x3002c, &[0]);
+    let mut wrong = rows.clone();
+    wrong.rows[0].relative_offset += 1;
+    assert!(
+        fixture
+            .core()
+            .parameter_schema(&wrong)
+            .unwrap()
+            .check_definition(npc::HP.definition())
+            .is_err()
+    );
+}
+#[test]
+fn param_single_row_metadata_is_not_promoted_to_stride_evidence() {
+    let fixture = schema_fixture(4);
+    let mut rows = fixture.core().parameter_rows(0x10000, 8).unwrap();
+    rows.native_row_count = 1;
+    rows.rows.truncate(1);
+    let schema = fixture.core().parameter_schema(&rows).unwrap();
+    assert!(!schema.has_row_stride_evidence());
+}

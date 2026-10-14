@@ -123,6 +123,105 @@ pub(crate) static DEFINITIONS: &[FieldDefinition] = &[
         packed_size: 816,
     },
     FieldDefinition {
+        table: "NpcParam",
+        native_name: "staminaRecoverBaseVel",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 246,
+        width: 2,
+        bit: None,
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "resist_poison",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 264,
+        width: 2,
+        bit: None,
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "resist_blood",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 268,
+        width: 2,
+        bit: None,
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "resist_curse",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 270,
+        width: 2,
+        bit: None,
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "resist_sleep",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 294,
+        width: 2,
+        bit: None,
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "resist_madness",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 296,
+        width: 2,
+        bit: None,
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "resist_freeze",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 480,
+        width: 2,
+        bit: None,
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "isWeakA",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 329,
+        width: 1,
+        bit: Some(3),
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
+        table: "NpcParam",
+        native_name: "isNoDamageMotion",
+        param_type: "NPC_PARAM_ST",
+        slot: 6,
+        offset: 329,
+        width: 1,
+        bit: Some(5),
+        data_version: 9,
+        packed_size: 816,
+    },
+    FieldDefinition {
         table: "EquipParamWeapon",
         native_name: "behaviorVariationId",
         param_type: "EQUIP_PARAM_WEAPON_ST",
@@ -452,6 +551,171 @@ pub(crate) static DEFINITIONS: &[FieldDefinition] = &[
         data_version: 3,
         packed_size: 320,
     },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "effectEndurance",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 8,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "maxHpRate",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 16,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "maxMpRate",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 20,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "maxStaminaRate",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 24,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "changeHpRate",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 156,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "changeHpPoint",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 160,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "changeMpPoint",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 168,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "changeStaminaPoint",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 180,
+        width: 4,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "spCategory",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 318,
+        width: 2,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "SpEffectParam",
+        native_name: "stateInfo",
+        param_type: "SP_EFFECT_PARAM_ST",
+        slot: 15,
+        offset: 342,
+        width: 2,
+        bit: None,
+        data_version: 4,
+        packed_size: 976,
+    },
+    FieldDefinition {
+        table: "NpcThinkParam",
+        native_name: "searchEye_dist",
+        param_type: "NPC_THINK_PARAM_ST",
+        slot: 9,
+        offset: 12,
+        width: 2,
+        bit: None,
+        data_version: 2,
+        packed_size: 228,
+    },
+    FieldDefinition {
+        table: "NpcThinkParam",
+        native_name: "searchEye_angY",
+        param_type: "NPC_THINK_PARAM_ST",
+        slot: 9,
+        offset: 14,
+        width: 1,
+        bit: None,
+        data_version: 2,
+        packed_size: 228,
+    },
+    FieldDefinition {
+        table: "NpcThinkParam",
+        native_name: "searchEye_angX",
+        param_type: "NPC_THINK_PARAM_ST",
+        slot: 9,
+        offset: 120,
+        width: 1,
+        bit: None,
+        data_version: 2,
+        packed_size: 228,
+    },
+    FieldDefinition {
+        table: "NpcThinkParam",
+        native_name: "searchTargetLv1ForgetTime",
+        param_type: "NPC_THINK_PARAM_ST",
+        slot: 9,
+        offset: 20,
+        width: 4,
+        bit: None,
+        data_version: 2,
+        packed_size: 228,
+    },
+    FieldDefinition {
+        table: "NpcThinkParam",
+        native_name: "enableJumpMove",
+        param_type: "NPC_THINK_PARAM_ST",
+        slot: 9,
+        offset: 156,
+        width: 1,
+        bit: None,
+        data_version: 2,
+        packed_size: 228,
+    },
 ];
 pub mod npc {
     use super::{DEFINITIONS, Field};
@@ -466,49 +730,79 @@ pub mod npc {
     pub const CHR_HIT_HEIGHT: Field<f32> = Field::new(&DEFINITIONS[8]);
     pub const CHR_HIT_RADIUS: Field<f32> = Field::new(&DEFINITIONS[9]);
     pub const IS_GHOST: Field<bool> = Field::new(&DEFINITIONS[10]);
+    pub const STAMINA_RECOVER_BASE_VEL: Field<u16> = Field::new(&DEFINITIONS[11]);
+    pub const RESIST_POISON: Field<u16> = Field::new(&DEFINITIONS[12]);
+    pub const RESIST_BLOOD: Field<u16> = Field::new(&DEFINITIONS[13]);
+    pub const RESIST_CURSE: Field<u16> = Field::new(&DEFINITIONS[14]);
+    pub const RESIST_SLEEP: Field<u16> = Field::new(&DEFINITIONS[15]);
+    pub const RESIST_MADNESS: Field<u16> = Field::new(&DEFINITIONS[16]);
+    pub const RESIST_FREEZE: Field<u16> = Field::new(&DEFINITIONS[17]);
+    pub const IS_WEAK_A: Field<bool> = Field::new(&DEFINITIONS[18]);
+    pub const IS_NO_DAMAGE_MOTION: Field<bool> = Field::new(&DEFINITIONS[19]);
 }
 pub mod weapon {
     use super::{DEFINITIONS, Field};
-    pub const BEHAVIOR_VARIATION_ID: Field<i32> = Field::new(&DEFINITIONS[11]);
-    pub const WEIGHT: Field<f32> = Field::new(&DEFINITIONS[12]);
-    pub const WEAPON_WEIGHT_RATE: Field<f32> = Field::new(&DEFINITIONS[13]);
-    pub const ATTACK_BASE_PHYSICS: Field<u16> = Field::new(&DEFINITIONS[14]);
-    pub const ATTACK_BASE_MAGIC: Field<u16> = Field::new(&DEFINITIONS[15]);
-    pub const ATTACK_BASE_FIRE: Field<u16> = Field::new(&DEFINITIONS[16]);
-    pub const ATTACK_BASE_THUNDER: Field<u16> = Field::new(&DEFINITIONS[17]);
-    pub const ATTACK_BASE_STAMINA: Field<u16> = Field::new(&DEFINITIONS[18]);
-    pub const STAMINA_GUARD_DEF: Field<i16> = Field::new(&DEFINITIONS[19]);
-    pub const RIGHT_HAND_EQUIPABLE: Field<bool> = Field::new(&DEFINITIONS[20]);
-    pub const ENABLE_GUARD: Field<bool> = Field::new(&DEFINITIONS[21]);
+    pub const BEHAVIOR_VARIATION_ID: Field<i32> = Field::new(&DEFINITIONS[20]);
+    pub const WEIGHT: Field<f32> = Field::new(&DEFINITIONS[21]);
+    pub const WEAPON_WEIGHT_RATE: Field<f32> = Field::new(&DEFINITIONS[22]);
+    pub const ATTACK_BASE_PHYSICS: Field<u16> = Field::new(&DEFINITIONS[23]);
+    pub const ATTACK_BASE_MAGIC: Field<u16> = Field::new(&DEFINITIONS[24]);
+    pub const ATTACK_BASE_FIRE: Field<u16> = Field::new(&DEFINITIONS[25]);
+    pub const ATTACK_BASE_THUNDER: Field<u16> = Field::new(&DEFINITIONS[26]);
+    pub const ATTACK_BASE_STAMINA: Field<u16> = Field::new(&DEFINITIONS[27]);
+    pub const STAMINA_GUARD_DEF: Field<i16> = Field::new(&DEFINITIONS[28]);
+    pub const RIGHT_HAND_EQUIPABLE: Field<bool> = Field::new(&DEFINITIONS[29]);
+    pub const ENABLE_GUARD: Field<bool> = Field::new(&DEFINITIONS[30]);
 }
 pub mod camera {
     use super::{DEFINITIONS, Field};
-    pub const CAM_DIST_TARGET: Field<f32> = Field::new(&DEFINITIONS[22]);
-    pub const CHR_ORG_OFFSET_Y: Field<f32> = Field::new(&DEFINITIONS[23]);
-    pub const CHR_LOCK_RANGE_MAX_RADIUS: Field<f32> = Field::new(&DEFINITIONS[24]);
-    pub const CAM_FOV_Y: Field<f32> = Field::new(&DEFINITIONS[25]);
-    pub const CHR_LOCK_RANGE_MAX_RADIUS_FOR_D: Field<f32> = Field::new(&DEFINITIONS[26]);
-    pub const CHR_LOCK_RANGE_MAX_RADIUS_FOR_PD: Field<f32> = Field::new(&DEFINITIONS[27]);
+    pub const CAM_DIST_TARGET: Field<f32> = Field::new(&DEFINITIONS[31]);
+    pub const CHR_ORG_OFFSET_Y: Field<f32> = Field::new(&DEFINITIONS[32]);
+    pub const CHR_LOCK_RANGE_MAX_RADIUS: Field<f32> = Field::new(&DEFINITIONS[33]);
+    pub const CAM_FOV_Y: Field<f32> = Field::new(&DEFINITIONS[34]);
+    pub const CHR_LOCK_RANGE_MAX_RADIUS_FOR_D: Field<f32> = Field::new(&DEFINITIONS[35]);
+    pub const CHR_LOCK_RANGE_MAX_RADIUS_FOR_PD: Field<f32> = Field::new(&DEFINITIONS[36]);
 }
 pub mod npc_attack {
     use super::{DEFINITIONS, Field};
-    pub const HIT0_RADIUS: Field<f32> = Field::new(&DEFINITIONS[28]);
-    pub const HIT_STOP_TIME: Field<f32> = Field::new(&DEFINITIONS[29]);
-    pub const SP_EFFECT_ID0: Field<i32> = Field::new(&DEFINITIONS[30]);
-    pub const ATK_DIR_FOR_SFX: Field<i8> = Field::new(&DEFINITIONS[31]);
-    pub const DISABLE_STAMINA_ATTACK: Field<bool> = Field::new(&DEFINITIONS[32]);
+    pub const HIT0_RADIUS: Field<f32> = Field::new(&DEFINITIONS[37]);
+    pub const HIT_STOP_TIME: Field<f32> = Field::new(&DEFINITIONS[38]);
+    pub const SP_EFFECT_ID0: Field<i32> = Field::new(&DEFINITIONS[39]);
+    pub const ATK_DIR_FOR_SFX: Field<i8> = Field::new(&DEFINITIONS[40]);
+    pub const DISABLE_STAMINA_ATTACK: Field<bool> = Field::new(&DEFINITIONS[41]);
 }
 pub mod player_attack {
     use super::{DEFINITIONS, Field};
-    pub const HIT0_RADIUS: Field<f32> = Field::new(&DEFINITIONS[33]);
-    pub const HIT_STOP_TIME: Field<f32> = Field::new(&DEFINITIONS[34]);
-    pub const SP_EFFECT_ID0: Field<i32> = Field::new(&DEFINITIONS[35]);
-    pub const ATK_DIR_FOR_SFX: Field<i8> = Field::new(&DEFINITIONS[36]);
-    pub const DISABLE_STAMINA_ATTACK: Field<bool> = Field::new(&DEFINITIONS[37]);
+    pub const HIT0_RADIUS: Field<f32> = Field::new(&DEFINITIONS[42]);
+    pub const HIT_STOP_TIME: Field<f32> = Field::new(&DEFINITIONS[43]);
+    pub const SP_EFFECT_ID0: Field<i32> = Field::new(&DEFINITIONS[44]);
+    pub const ATK_DIR_FOR_SFX: Field<i8> = Field::new(&DEFINITIONS[45]);
+    pub const DISABLE_STAMINA_ATTACK: Field<bool> = Field::new(&DEFINITIONS[46]);
 }
 pub mod initial {
     use super::{DEFINITIONS, Field};
-    pub const SOUL: Field<i32> = Field::new(&DEFINITIONS[38]);
-    pub const EQUIP_WEP_RIGHT_1: Field<i32> = Field::new(&DEFINITIONS[39]);
-    pub const EQUIP_HELM: Field<i32> = Field::new(&DEFINITIONS[40]);
+    pub const SOUL: Field<i32> = Field::new(&DEFINITIONS[47]);
+    pub const EQUIP_WEP_RIGHT_1: Field<i32> = Field::new(&DEFINITIONS[48]);
+    pub const EQUIP_HELM: Field<i32> = Field::new(&DEFINITIONS[49]);
+}
+pub mod effect {
+    use super::{DEFINITIONS, Field};
+    pub const EFFECT_ENDURANCE: Field<f32> = Field::new(&DEFINITIONS[50]);
+    pub const MAX_HP_RATE: Field<f32> = Field::new(&DEFINITIONS[51]);
+    pub const MAX_MP_RATE: Field<f32> = Field::new(&DEFINITIONS[52]);
+    pub const MAX_STAMINA_RATE: Field<f32> = Field::new(&DEFINITIONS[53]);
+    pub const CHANGE_HP_RATE: Field<f32> = Field::new(&DEFINITIONS[54]);
+    pub const CHANGE_HP_POINT: Field<i32> = Field::new(&DEFINITIONS[55]);
+    pub const CHANGE_MP_POINT: Field<i32> = Field::new(&DEFINITIONS[56]);
+    pub const CHANGE_STAMINA_POINT: Field<i32> = Field::new(&DEFINITIONS[57]);
+    pub const SP_CATEGORY: Field<i16> = Field::new(&DEFINITIONS[58]);
+    pub const STATE_INFO: Field<u16> = Field::new(&DEFINITIONS[59]);
+}
+pub mod think {
+    use super::{DEFINITIONS, Field};
+    pub const SEARCH_EYE_DIST: Field<u16> = Field::new(&DEFINITIONS[60]);
+    pub const SEARCH_EYE_ANG_Y: Field<u8> = Field::new(&DEFINITIONS[61]);
+    pub const SEARCH_EYE_ANG_X: Field<u8> = Field::new(&DEFINITIONS[62]);
+    pub const SEARCH_TARGET_LV1_FORGET_TIME: Field<f32> = Field::new(&DEFINITIONS[63]);
+    pub const ENABLE_JUMP_MOVE: Field<u8> = Field::new(&DEFINITIONS[64]);
 }

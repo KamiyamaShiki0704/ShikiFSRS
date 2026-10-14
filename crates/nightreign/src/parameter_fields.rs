@@ -5,7 +5,7 @@ use shikifsrs_runtime::{Error, Result, memory::AddressSpace};
 use std::marker::PhantomData;
 
 mod generated;
-pub use generated::{camera, initial, npc, npc_attack, player_attack, weapon};
+pub use generated::{camera, effect, initial, npc, npc_attack, player_attack, think, weapon};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FieldDefinition {
@@ -116,6 +116,8 @@ impl<M: AddressSpace> NightreignReader<'_, '_, M> {
             ));
         }
         let rows = self.parameter_rows(root, definition.table, variant, limit)?;
+        let schema = self.core().parameter_schema(&rows)?;
+        schema.check_definition(definition)?;
         let Some(row) = rows.row(id) else {
             return Ok(None);
         };
@@ -150,6 +152,11 @@ impl<M: AddressSpace> NightreignReader<'_, '_, M> {
         if self.parameter_rows(root, definition.table, variant, limit)? != rows {
             return Err(Error::InvalidProfile(
                 "NR row changed during typed field read",
+            ));
+        }
+        if self.core().parameter_schema(&rows)? != schema {
+            return Err(Error::InvalidProfile(
+                "NR PARAM schema changed during typed field read",
             ));
         }
         Ok(Some(value))
@@ -196,7 +203,28 @@ mod tests {
         assert!(weapon::ENABLE_GUARD.read_row_bytes(&[0; 261]).is_err());
         assert_eq!(npc_attack::ATK_DIR_FOR_SFX.definition().slot, 7);
         assert_eq!(player_attack::ATK_DIR_FOR_SFX.definition().slot, 8);
-        assert_eq!(definitions().len(), 41);
+        assert_eq!(definitions().len(), 65);
         assert_eq!(npc::WEIGHT.definition().width, 4);
+    }
+    #[test]
+    fn added_effect_and_resistance_fields_decode_pinned_signed_and_unsigned_values() {
+        let mut effect_row = vec![0; 976];
+        effect_row[160..164].copy_from_slice(&(-100i32).to_le_bytes());
+        effect_row[318..320].copy_from_slice(&(-3i16).to_le_bytes());
+        effect_row[8..12].copy_from_slice(&5.5f32.to_le_bytes());
+        assert_eq!(
+            effect::CHANGE_HP_POINT.read_row_bytes(&effect_row).unwrap(),
+            -100
+        );
+        assert_eq!(effect::SP_CATEGORY.read_row_bytes(&effect_row).unwrap(), -3);
+        assert_eq!(
+            effect::EFFECT_ENDURANCE
+                .read_row_bytes(&effect_row)
+                .unwrap(),
+            5.5
+        );
+        let mut npc_row = vec![0; 816];
+        npc_row[480..482].copy_from_slice(&500u16.to_le_bytes());
+        assert_eq!(npc::RESIST_FREEZE.read_row_bytes(&npc_row).unwrap(), 500);
     }
 }

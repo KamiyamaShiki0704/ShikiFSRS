@@ -1,6 +1,7 @@
 //! Optional end-to-end offline test. The executable is only read as an immutable file.
 use shikifsrs_nightreign::{NightreignFile, reader::CharacterKind};
 use shikifsrs_runtime::{Error, Result, memory::AddressSpace, pe::FileImage};
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 struct MappedFixture<'a> {
@@ -70,6 +71,55 @@ impl AddressSpace for MappedFixture<'_> {
                     address,
                     length: offset + 1,
                 })?;
+        }
+        Ok(())
+    }
+}
+
+struct OperationFixture<'a> {
+    inner: &'a MappedFixture<'a>,
+    writes: RefCell<BTreeMap<u64, u8>>,
+    calls: RefCell<Vec<u64>>,
+}
+impl AddressSpace for OperationFixture<'_> {
+    fn read_exact(&self, address: u64, output: &mut [u8]) -> Result<()> {
+        let writes = self.writes.borrow();
+        if (0..output.len()).all(|offset| writes.contains_key(&(address + offset as u64))) {
+            for (offset, byte) in output.iter_mut().enumerate() {
+                *byte = writes[&(address + offset as u64)];
+            }
+            return Ok(());
+        }
+        self.inner.read_exact(address, output)?;
+        for (offset, byte) in output.iter_mut().enumerate() {
+            if let Some(value) = writes.get(&(address + offset as u64)) {
+                *byte = *value;
+            }
+        }
+        Ok(())
+    }
+}
+// SAFETY: This backend changes owned test bytes only, synchronously. Invocation routes,
+// native limit signatures and data module addresses are verified by the SDK before entry.
+unsafe impl shikifsrs_nightreign::character_operations::CharacterOperationBackend
+    for OperationFixture<'_>
+{
+    unsafe fn invoke_limit(&self, entry: u64, module: u64, value: i32) -> Result<()> {
+        assert_eq!(module, 0x170000);
+        self.calls.borrow_mut().push(entry);
+        let (current, limit, floor) = match entry - self.inner.base {
+            0x427d40 => (0x140, 0x144, 0),
+            0x427db0 => (0x150, 0x154, 0),
+            0x427e00 => (0x15c, 0x160, -100),
+            _ => panic!("unexpected fixture operation"),
+        };
+        let prior = self.read_u32(module + current)? as i32;
+        let updated = prior.clamp(floor, value);
+        let mut writes = self.writes.borrow_mut();
+        for (offset, word) in [(limit, value), (current, updated)] {
+            for (byte, value) in word.to_le_bytes().into_iter().enumerate() {
+                writes.insert(module + offset + byte as u64, value);
+            }
         }
         Ok(())
     }
@@ -173,8 +223,32 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     );
     fixture.dword(0x140224, 1234);
     fixture.put(0x140349, &[0x10]);
+    fixture.put(0x140008, &9u16.to_le_bytes());
+    fixture.put(0x14002c, &[0]);
+    let mut type_name = [0; 32];
+    type_name[..12].copy_from_slice(b"NPC_PARAM_ST");
+    fixture.put(0x14000c, &type_name);
+    fixture.word(0x150000, 0x170000);
+    fixture.object(0x170000, 0x2c10b88);
+    fixture.word(0x170008, 0x50000);
+    let counters = [100i32, 120, 130, 140, 40, 50, 60, -50, 90, 100];
+    fixture.put(
+        0x170140,
+        &counters
+            .into_iter()
+            .flat_map(i32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture.word(0x474e8, 0x50000);
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
+    let state = reader.character_state(0x50000).unwrap().unwrap();
+    assert_eq!(state.is_local_player, Some(true));
+    assert_eq!(state.attributes.health.current, 100);
+    assert_eq!(state.attributes.stamina.current, -50);
+    let schema = reader.parameter_schema(0x70000, "NpcParam", 0, 8).unwrap();
+    assert_eq!(schema.data_version, 9);
+    assert!(!schema.has_row_stride_evidence());
     assert_eq!(
         reader
             .character_module(0x50000, ModuleKind::Physics)
@@ -265,6 +339,55 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
         [0x80000]
     );
     assert!(reader.parameter_caps(0x70000, "does-not-exist").is_err());
+    let operations_fixture = OperationFixture {
+        inner: &fixture,
+        writes: RefCell::new(BTreeMap::new()),
+        calls: RefCell::new(Vec::new()),
+    };
+    let operations = file
+        .bind_character_operations(&operations_fixture, fixture.base)
+        .unwrap();
+    use shikifsrs_nightreign::character_operations::ResourceLimit;
+    // SAFETY: Owned-memory fixture, exclusive sequential mutation, no actual game code invoked.
+    let changed = unsafe {
+        operations
+            .set_effective_limit(0x50000, ResourceLimit::Health, 80)
+            .unwrap()
+    };
+    assert_eq!(changed.before.health.current, 100);
+    assert_eq!(changed.after.health.current, 80);
+    assert_eq!(changed.after.health.effective_limit, 80);
+    // SAFETY: Same serialized fixture operation and original module ownership.
+    let changed = unsafe {
+        operations
+            .set_effective_limit(0x50000, ResourceLimit::Focus, 30)
+            .unwrap()
+    };
+    assert_eq!(changed.after.focus.current, 30);
+    // SAFETY: Same fixture phase; negative current stamina remains valid above native floor.
+    let changed = unsafe {
+        operations
+            .set_effective_limit(0x50000, ResourceLimit::Stamina, 70)
+            .unwrap()
+    };
+    assert_eq!(changed.after.stamina.current, -50);
+    assert_eq!(changed.after.stamina.effective_limit, 70);
+    // SAFETY: Invalid limit is rejected before invoking the owned-memory backend.
+    assert!(unsafe { operations.set_effective_limit(0x50000, ResourceLimit::Health, 0) }.is_err());
+    assert_eq!(operations_fixture.calls.borrow().len(), 3);
+    let mut wrong_schema = MappedFixture {
+        image: fixture.image,
+        base: fixture.base,
+        objects: fixture.objects.clone(),
+        changed_byte: None,
+    };
+    wrong_schema.put(0x140008, &8u16.to_le_bytes());
+    let wrong_reader = file.bind_reader(&wrong_schema, fixture.base).unwrap();
+    assert!(
+        wrong_reader
+            .parameter_field(0x70000, 0, 99, parameter_fields::npc::HP, 8)
+            .is_err()
+    );
     let original = file.file().image().read_rva(0xfec930, 1).unwrap()[0];
     fixture.changed_byte = Some((0xfec930, original ^ 1));
     assert!(matches!(

@@ -21,7 +21,7 @@
     "table_end_rva": "0x2ce0c60"
   },
   "source": "Independent static extraction from the identified executable; no live execution.",
-  "runtime_status": "experimental roots, task ownership, character modules/rigid transforms and runtime PARAM rows/typed fields; no in-game validation",
+  "runtime_status": "experimental NR state, attributes, native limit operations and PARAM compatibility checks; no in-game validation",
   "object_types": [
     {
       "decorated_name": ".?AVCSTaskGroupImp@CS@@",
@@ -390,8 +390,8 @@
   "typed_parameter_fields": {
     "descriptor_file": "data/parameter-fields.json",
     "definition_revision": "ff7245e524329bc3eab00036723d2bd53384cedf",
-    "field_count": 41,
-    "table_count": 6,
+    "field_count": 65,
+    "table_count": 8,
     "types": [
       "u8",
       "i8",
@@ -403,8 +403,67 @@
       "bool"
     ],
     "runtime_schema_verified": false,
-    "status": "experimental pinned NR definition facts; no live regulation schema acceptance"
+    "status": "Pinned NR definitions plus header compatibility and observable row-stride checks; no in-game schema acceptance"
   },
   "character_code_evidence_csv": "data/character-code.csv",
-  "character_code_evidence_sha256": "204f21f97744e3eb4fdcff39d4658b03d258120582c8f4fa86a2a9b422abc1a2"
+  "character_code_evidence_sha256": "204f21f97744e3eb4fdcff39d4658b03d258120582c8f4fa86a2a9b422abc1a2",
+  "character_attributes": {
+    "data_module_slot": 0,
+    "copied_span_offset": 320,
+    "copied_span_length": 40,
+    "health": {
+      "current": 320,
+      "effective_limit": 324,
+      "native_reference": 332
+    },
+    "focus": {
+      "current": 336,
+      "effective_limit": 340,
+      "native_reference": 344
+    },
+    "stamina": {
+      "current": 348,
+      "effective_limit": 352,
+      "native_reference": 356
+    },
+    "health_intermediate_word": 328,
+    "local_player_world_pointer_offset": 95464,
+    "local_player_evidence_rva": "0x3d4180",
+    "native_initialization_rva": "0x4284d0",
+    "semantics": "Resource channels corroborated by independent NR NPC definitions: hp +0x24, mp +0x28 and stamina +0xf4 feed native data-module initialization. Reference counters retain raw native getter values.",
+    "status": "experimental copied state; no in-game acceptance"
+  },
+  "character_native_operations": {
+    "health_effective_limit_rva": "0x427d40",
+    "focus_effective_limit_rva": "0x427db0",
+    "stamina_effective_limit_rva": "0x427e00",
+    "abi": "Windows AMD64 void(this, i32)",
+    "supported_inputs": {
+      "health": "1..524287",
+      "focus": "0..i32::MAX",
+      "stamina": "0..i32::MAX"
+    },
+    "engine_current_floors": {
+      "health": 0,
+      "focus": 0,
+      "stamina": -100
+    },
+    "ownership": "Host provides serialized mutation phase, stable module ownership, lifetime and DLL residency. Errors after invocation do not imply rollback.",
+    "status": "compiled in-process backend; only owned synthetic mutation exercised"
+  },
+  "state_code_evidence_csv": "data/state-code.csv",
+  "state_code_evidence_sha256": "fd3b74c122051a1c8842220cafc1a8334b214c55508d001a78fd0ba70e222a34",
+  "parameter_schema": {
+    "data_version_offset": 8,
+    "inline_type_offset": 12,
+    "inline_type_width": 32,
+    "type_relative_pointer_offset": 16,
+    "out_of_line_type_flag": 128,
+    "endian_offset": 44,
+    "maximum_type_length": 128,
+    "row_layout": "Uniform ordinal spacing compared to pinned packed row size; single/partial index remains insufficient evidence.",
+    "source": "https://github.com/soulsmods/DSMapStudio/blob/97bc264cbc3e82a783eb017f57edf651f8ba000b/src/Andre/Andre.Formats/Param.cs",
+    "source_revision": "97bc264cbc3e82a783eb017f57edf651f8ba000b",
+    "runtime_schema_verified": false
+  }
 }
