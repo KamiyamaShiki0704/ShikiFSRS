@@ -304,6 +304,18 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x201156, &449u16.to_le_bytes());
     fixture.word(0x300000, 0x370000);
     fixture.word(0x300008, 0);
+    fixture.put(0x300060, &[0; 32]);
+    fixture.word(0x300080, 0);
+    fixture.word(0x300088, 0x3b0000);
+    fixture.word(0x300090, 0x3b0008);
+    fixture.word(0x300098, 0x3b0008);
+    fixture.put(
+        0x3b0000,
+        &[0x80000000u32, 0x7fc12345]
+            .into_iter()
+            .flat_map(u32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
     fixture.dword(0x3000a0, 100);
     fixture.word(0x300040, 0x380000);
     fixture.word(0x300048, 2);
@@ -419,6 +431,44 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(tree.nodes.len(), 2);
     assert_eq!(tree.nodes[1].pool_slot_index, 1);
     assert_eq!(tree.nodes[1].parent_context_address, 0x300000);
+    let values = reader.goal_parameters(0x300000, 8).unwrap();
+    assert_eq!(values.parameter_bits(0), 42.75f32.to_bits());
+    assert_eq!(values.parameter_bits(8), 0x80000000);
+    assert_eq!(values.parameter_bits(9), 0x7fc12345);
+    assert_eq!(values.parameter_bits(10), 0);
+    for (id, expected_branch, expected_constructor) in [
+        (
+            shikifsrs_nightreign::goal_parameters::EXEC_ACTION_GOAL_ID,
+            0x2d4892u32,
+            0x2dccb0i64,
+        ),
+        (
+            shikifsrs_nightreign::goal_parameters::FOLLOW_PATH_GOAL_ID,
+            0x2d491cu32,
+            0x2dcce0i64,
+        ),
+    ] {
+        let table_index = fixture
+            .image
+            .read_rva(0x2d4eec + (id - 2013) as u32, 1)
+            .unwrap()[0];
+        let branch = u32::from_le_bytes(
+            fixture
+                .image
+                .read_rva(0x2d4e7c + table_index as u32 * 4, 4)
+                .unwrap()
+                .try_into()
+                .unwrap(),
+        );
+        assert_eq!(branch, expected_branch);
+        let call = fixture.image.read_rva(branch + 0x2f, 5).unwrap();
+        assert_eq!(call[0], 0xe8);
+        let displacement = i32::from_le_bytes(call[1..].try_into().unwrap());
+        assert_eq!(
+            branch as i64 + 0x34 + displacement as i64,
+            expected_constructor
+        );
+    }
     assert!(
         reader
             .think_self_effect_predicate(0x300000, 123, 8)

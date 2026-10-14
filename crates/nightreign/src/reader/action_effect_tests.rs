@@ -1017,3 +1017,112 @@ fn goal_tree_rechecks_root_parent_link_and_child_goal_id() {
         );
     }
 }
+
+fn goal_parameter_fixture() -> Fixture {
+    let mut fixture = goal_fixture();
+    let bits = [
+        42.75f32.to_bits(),
+        0x80000000,
+        0x7fc12345,
+        0x7f800000,
+        0xff800000,
+        0,
+        0x80000001,
+        0xffffffff,
+    ];
+    fixture.put(
+        0x10060,
+        &bits
+            .into_iter()
+            .flat_map(u32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    for (offset, value) in [
+        (0x80, u64::MAX),
+        (0x88, 0x20000),
+        (0x90, 0x2000c),
+        (0x98, u64::MAX - 3),
+    ] {
+        fixture.word(0x10000 + offset, value);
+    }
+    fixture.put(
+        0x20000,
+        &[1234f32.to_bits(), 0x80000000, 0x7fa00001]
+            .into_iter()
+            .flat_map(u32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture
+}
+#[test]
+fn goal_parameters_preserve_float_payloads_and_signed_index_zero_defaults() {
+    let fixture = goal_parameter_fixture();
+    let values = fixture.core().goal_parameters(0x10000, 3).unwrap();
+    assert_eq!(values.parameter_bits(1), 0x80000000);
+    assert_eq!(values.parameter_bits(2), 0x7fc12345);
+    assert!(values.parameter(3).is_infinite());
+    assert_eq!(values.parameter_bits(8), 1234f32.to_bits());
+    assert_eq!(values.parameter_bits(10), 0x7fa00001);
+    for index in [i32::MIN, -1, 11, i32::MAX] {
+        assert_eq!(values.parameter_bits(index), 0);
+    }
+    assert_eq!(values.raw_allocator_address, u64::MAX); // Allocator/capacity are not read.
+}
+#[test]
+fn goal_parameters_empty_vectors_do_not_touch_capacity_or_null_storage() {
+    let mut fixture = goal_parameter_fixture();
+    fixture.word(0x10090, 0x20000);
+    assert!(
+        fixture
+            .core()
+            .goal_parameters(0x10000, 1)
+            .unwrap()
+            .extra_bits
+            .is_empty()
+    );
+    for offset in [0x88, 0x90, 0x98] {
+        fixture.word(0x10000 + offset, 0);
+    }
+    let values = fixture.core().goal_parameters(0x10000, 1).unwrap();
+    assert_eq!(values.parameter_bits(8), 0);
+    assert!(fixture.core().goal_parameters(0x10000, 0).is_err());
+}
+#[test]
+fn goal_parameters_reject_invalid_vector_bounds_and_changing_copies() {
+    let fixture = goal_parameter_fixture();
+    assert!(fixture.core().goal_parameters(0x10000, 2).is_err());
+    for (address, value) in [
+        (0x10088, 0u64),
+        (0x10090, 0x1fffc),
+        (0x10090, 0x20002),
+        (0x10098, 0x20004),
+    ] {
+        let mut fixture = goal_parameter_fixture();
+        fixture.word(address, value);
+        assert!(fixture.core().goal_parameters(0x10000, 3).is_err());
+    }
+    for (address, bytes) in [
+        (0x10060, vec![0; 32]),
+        (0x20000, vec![0; 12]),
+        (0x10088, 0x20004u64.to_le_bytes().to_vec()),
+        (0x10098, 0x2000cu64.to_le_bytes().to_vec()),
+    ] {
+        let mut fixture = goal_parameter_fixture();
+        fixture.replacement = Some((address, bytes));
+        assert!(fixture.core().goal_parameters(0x10000, 3).is_err());
+    }
+}
+#[test]
+fn goal_parameter_zero_matches_request_plan_but_not_builtin_goal_kind_id() {
+    let mut fixture = goal_parameter_fixture();
+    fixture.word(0x100a8, 0x40000);
+    fixture.object(0x40000, crate::goal_requests::EXEC_GOAL_TABLE);
+    let values = fixture.core().goal_parameters(0x10000, 3).unwrap();
+    let plan = fixture.core().goal_action_request_plan(0x10000).unwrap();
+    assert_eq!(values.parameter_bits(0), plan.parameter_bits);
+    assert_eq!(plan.requested_id_bits, 42);
+    assert_ne!(
+        plan.requested_id_bits,
+        crate::goal_parameters::EXEC_ACTION_GOAL_ID as u32
+    );
+}
