@@ -6,6 +6,9 @@ use std::collections::BTreeMap;
 #[path = "fixtures/effect_removal.rs"]
 mod effect_removal_fixture;
 use effect_removal_fixture::check_effect_removal_receipts;
+#[path = "fixtures/effect_addition.rs"]
+mod effect_addition_fixture;
+use effect_addition_fixture::check_effect_addition_receipts;
 
 struct MappedFixture<'a> {
     image: &'a FileImage<'a>,
@@ -273,6 +276,25 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x1b0156, &449u16.to_le_bytes());
     fixture.put(0x1b013e, &0i16.to_le_bytes());
     fixture.put(0x1b031c, &1i16.to_le_bytes());
+    fixture.dword(0x70000 + 15 * 72 + 0x80, 1);
+    fixture.word(0x70000 + 15 * 72 + 0x88, 0x1e0000);
+    fixture.object(0x1e0000, 0x2cade48);
+    fixture.word(0x1e0080, 0x1f0000);
+    fixture.word(0x1f0080, 0x200000);
+    fixture.put(0x200000, &[0; 0x58]);
+    fixture.put(0x200008, &4u16.to_le_bytes());
+    fixture.put(0x20000a, &1u16.to_le_bytes());
+    let mut effect_type = [0; 32];
+    effect_type[..18].copy_from_slice(b"SP_EFFECT_PARAM_ST");
+    fixture.put(0x20000c, &effect_type);
+    fixture.put(0x20002d, &[4, 2]);
+    fixture.dword(0x1ffff0, 0x101);
+    fixture.dword(0x1ffff4, 1);
+    fixture.dword(0x200110, 123);
+    fixture.dword(0x200114, 0);
+    fixture.word(0x200048, 0x1000);
+    fixture.put(0x201000, &[0; 976]);
+    fixture.put(0x201156, &449u16.to_le_bytes());
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
@@ -285,6 +307,7 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert!(effects.contains_id(123));
     assert!(effects.contains_state(449));
     check_effect_removal_receipts(&file, &fixture);
+    check_effect_addition_receipts(&file, &fixture);
     let schema = reader.parameter_schema(0x70000, "NpcParam", 0, 8).unwrap();
     assert_eq!(schema.data_version, 9);
     assert!(!schema.has_row_stride_evidence());

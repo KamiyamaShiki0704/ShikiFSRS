@@ -30,6 +30,21 @@ pub struct SpecialEffectsSnapshot {
     pub nodes: Vec<SpecialEffectNode>,
 }
 impl SpecialEffectsSnapshot {
+    pub(crate) fn check_owner_links(&self) -> Result<()> {
+        if self.owner_address != self.character_address {
+            return Err(Error::InvalidProfile(
+                "NR effect owner differs from character",
+            ));
+        }
+        let mut previous = 0;
+        for node in &self.nodes {
+            if node.previous_address != previous {
+                return Err(Error::InvalidProfile("NR effect previous link differs"));
+            }
+            previous = node.address;
+        }
+        Ok(())
+    }
     pub fn contains_id(&self, id: i32) -> bool {
         self.nodes
             .iter()

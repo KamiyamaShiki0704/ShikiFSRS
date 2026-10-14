@@ -161,19 +161,10 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
         snapshot: &SpecialEffectsSnapshot,
         id: i32,
     ) -> Result<bool> {
-        if snapshot.owner_address != snapshot.character_address {
-            return Err(Error::InvalidProfile(
-                "NR effect owner differs from character",
-            ));
-        }
-        let mut previous = 0;
+        snapshot.check_owner_links()?;
         let mut callback_possible = false;
         let mut first_match = false;
         for node in &snapshot.nodes {
-            if node.previous_address != previous {
-                return Err(Error::InvalidProfile("NR effect previous link differs"));
-            }
-            previous = node.address;
             if node.parameter_address != 0 {
                 if !node.parameter_address.is_multiple_of(4) {
                     return Err(Error::InvalidProfile("unaligned NR effect PARAM"));
