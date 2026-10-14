@@ -9,6 +9,7 @@ pub mod current_tasks;
 pub mod effect_addition;
 pub mod effect_operations;
 pub mod effect_tiers;
+pub mod goal_actions;
 pub mod native_tasks;
 pub mod parameter_fields;
 pub mod parameter_rows;
@@ -128,6 +129,9 @@ impl<'a> NightreignFile<'a> {
             module.code_address(range)?;
         }
         for range in effect_tier_evidence()? {
+            module.code_address(range)?;
+        }
+        for range in goal_action_evidence()? {
             module.code_address(range)?;
         }
         for (_, table) in OBJECT_TYPES {
@@ -254,6 +258,27 @@ pub(crate) fn effect_tier_evidence() -> Result<Vec<CodeRange>> {
         })
         .collect()
 }
+pub(crate) fn goal_action_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/goal-action-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR goal RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR goal RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR goal extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR goal extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
+}
 
 pub(crate) fn character_evidence() -> Result<Vec<CodeRange>> {
     include_str!("../data/character-code.csv")
@@ -288,6 +313,8 @@ fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> 
         (".?AVCSChrActionRequestModule@CS@@", 0x2c0c808),
         (".?AVCSChrBehaviorDataModule@CS@@", 0x2c0f278),
         (".?AVSpecialEffect@CS@@", character_effects::EFFECT_TABLE),
+        (".?AVCSGoalFunc@CS@@", goal_actions::GOAL_FUNC_TABLE),
+        (".?AVEzActionExecCtrl@CS@@", goal_actions::CONTROL_TABLE),
     ] {
         if !image
             .vtables(name)?

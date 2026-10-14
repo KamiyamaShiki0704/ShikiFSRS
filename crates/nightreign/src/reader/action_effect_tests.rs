@@ -194,3 +194,56 @@ fn removal_preflight_reads_param_dependencies_on_excluded_matches() {
     fixture.put(0x7031c, &9i16.to_le_bytes());
     assert!(fixture.core().check_effect_removal(&snapshot, 102).unwrap());
 }
+
+fn goal_fixture() -> Fixture {
+    let mut fixture = Fixture::default();
+    fixture.word(0x10000, 0x90000);
+    fixture.object(0x10018, crate::goal_actions::GOAL_FUNC_TABLE);
+    fixture.word(0x10020, 0x10000);
+    fixture.object(0x10300, crate::goal_actions::CONTROL_TABLE);
+    fixture.word(0x10308, 0);
+    fixture.put(0x10310, &[0; 13]);
+    fixture.dword(0x10314, u32::MAX);
+    fixture.dword(0x10318, 0xfedcba98);
+    fixture.put(0x1031c, &[255]);
+    fixture
+}
+#[test]
+fn goal_action_state_preserves_raw_getter_bits_and_null_link() {
+    let fixture = goal_fixture();
+    let state = fixture.core().goal_action_state(0x10000).unwrap();
+    assert_eq!(state.controller_address, 0x10300);
+    assert_eq!(state.raw_parent_address, 0x90000);
+    assert_eq!(state.raw_controller_link, 0);
+    assert_eq!(state.raw_word_14, -1);
+    assert_eq!(state.raw_id_bits, 0xfedcba98);
+    assert_eq!(state.raw_flag, 255);
+}
+#[test]
+fn goal_state_rejects_wrong_interface_controller_and_foreign_self_link() {
+    let mut fixture = goal_fixture();
+    fixture.object(0x10018, PLAYER_TABLE);
+    assert!(fixture.core().goal_action_state(0x10000).is_err());
+    fixture.object(0x10018, crate::goal_actions::GOAL_FUNC_TABLE);
+    fixture.word(0x10020, 0x90000);
+    assert!(fixture.core().goal_action_state(0x10000).is_err());
+    fixture.word(0x10020, 0x10000);
+    fixture.object(0x10300, PLAYER_TABLE);
+    assert!(fixture.core().goal_action_state(0x10000).is_err());
+}
+#[test]
+fn goal_state_rejects_control_changes_and_address_overflow() {
+    let mut fixture = goal_fixture();
+    fixture.replacement = Some((0x10310, vec![0; 13]));
+    assert!(fixture.core().goal_action_state(0x10000).is_err());
+    assert!(fixture.core().goal_action_state(u64::MAX - 7).is_err());
+    assert!(fixture.core().goal_action_state(0x10001).is_err());
+    let mut null = Fixture::default();
+    null.word(0, 0);
+    null.object(0x18, crate::goal_actions::GOAL_FUNC_TABLE);
+    null.word(0x20, 0);
+    null.object(0x300, crate::goal_actions::CONTROL_TABLE);
+    null.word(0x308, 0);
+    null.put(0x310, &[0; 13]);
+    assert!(null.core().goal_action_state(0).is_err()); // Valid-looking embedded headers cannot validate a null owner.
+}
