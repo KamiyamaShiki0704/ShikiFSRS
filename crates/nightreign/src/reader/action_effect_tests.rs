@@ -435,3 +435,155 @@ fn think_transition_mask_is_only_the_two_queue_produced_bits() {
     assert_eq!(queue.predicate_event_mask(), 0);
     assert_eq!(queue.first_transition_key_b(Edge::BecameFalse), None);
 }
+
+fn self_target_fixture() -> Fixture {
+    let mut fixture = effect_fixture();
+    fixture.bytes.extend(goal_fixture().bytes);
+    fixture.word(0x90008, 0xa0000);
+    fixture.object(0xa0000, crate::think_actions::AI_FUNC_TABLE);
+    fixture.word(0xa0008, 0x90000);
+    fixture.object(0x9c958, crate::think_targets::SELF_TARGET_TABLE);
+    fixture.word(0x9c960, 0x80000);
+    fixture.word(0x80000, 0x70000);
+    fixture.object(0x70000, PLAYER_TABLE);
+    fixture.word(0x70018, 0x80000);
+    fixture.word(0x70190, 0x20000);
+    fixture.word(0x20010, 0x70000);
+    fixture
+}
+#[test]
+fn think_self_target_distinguishes_missing_parent_and_unbound_handles() {
+    let mut fixture = self_target_fixture();
+    let target = fixture.core().think_self_target(0x10000).unwrap().unwrap();
+    assert_eq!(target.target_address, 0x9c958);
+    assert_eq!(target.handle_address, 0x80000);
+    assert_eq!(target.character_address, Some(0x70000));
+    fixture.word(0x80000, 0);
+    let unbound = fixture.core().think_self_target(0x10000).unwrap().unwrap();
+    assert_eq!(unbound.character_address, None);
+    assert!(
+        !fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 101, 3)
+            .unwrap()
+            .unwrap()
+            .present
+    );
+    fixture.word(0x9c960, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .think_self_target(0x10000)
+            .unwrap()
+            .unwrap()
+            .handle_address,
+        0
+    );
+    fixture.word(0x10000, 0);
+    assert_eq!(fixture.core().think_self_target(0x10000).unwrap(), None);
+    assert_eq!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 101, 3)
+            .unwrap(),
+        None
+    );
+}
+#[test]
+fn think_self_effect_predicate_includes_excluded_ids_and_preserves_all_id_bits() {
+    let mut fixture = self_target_fixture();
+    let effects = fixture.core().special_effects(0x70000, 3).unwrap().unwrap();
+    assert!(!effects.contains_id(102));
+    assert!(effects.contains_unfiltered_id(102));
+    assert!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 102, 3)
+            .unwrap()
+            .unwrap()
+            .present
+    );
+    assert!(
+        !fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 999, 3)
+            .unwrap()
+            .unwrap()
+            .present
+    );
+    fixture.dword(0x40008, u32::MAX);
+    assert!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, -1, 3)
+            .unwrap()
+            .unwrap()
+            .present
+    );
+    fixture.dword(0x40008, 0);
+    assert!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 0, 3)
+            .unwrap()
+            .unwrap()
+            .present
+    );
+    assert!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 101, 2)
+            .is_err()
+    );
+    assert!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 101, 0)
+            .is_err()
+    );
+    fixture.word(0x70190, 0);
+    assert!(
+        !fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 101, 3)
+            .unwrap()
+            .unwrap()
+            .present
+    );
+}
+#[test]
+fn think_self_target_rejects_wrong_types_owners_and_reciprocal_handles() {
+    let mut fixture = self_target_fixture();
+    fixture.object(0x9c958, PLAYER_TABLE);
+    assert!(fixture.core().think_self_target(0x10000).is_err());
+    fixture.object(0x9c958, crate::think_targets::SELF_TARGET_TABLE);
+    fixture.word(0x70018, 0x80008);
+    assert!(fixture.core().think_self_target(0x10000).is_err());
+    fixture.word(0x70018, 0x80000);
+    fixture.word(0xa0008, 0x90008);
+    assert!(fixture.core().think_self_target(0x10000).is_err());
+    fixture.word(0xa0008, 0x90000);
+    fixture.word(0x20010, 0x70008);
+    assert!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 101, 3)
+            .is_err()
+    );
+}
+#[test]
+fn think_self_target_and_predicate_reject_changing_associations() {
+    for (address, replacement) in [(0x80000, 0u64), (0x9c960, 0x80008), (0x70000, 0)] {
+        let mut fixture = self_target_fixture();
+        fixture.replacement = Some((address, replacement.to_le_bytes().to_vec()));
+        assert!(fixture.core().think_self_target(0x10000).is_err());
+    }
+    let mut fixture = self_target_fixture();
+    fixture.replacement = Some((0x70190, 0u64.to_le_bytes().to_vec()));
+    assert!(
+        fixture
+            .core()
+            .think_self_effect_predicate(0x10000, 101, 3)
+            .is_err()
+    );
+}

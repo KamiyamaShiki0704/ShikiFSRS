@@ -16,7 +16,7 @@ pub struct SpecialEffectNode {
     pub state_info: Option<u16>,
 }
 impl SpecialEffectNode {
-    /// Eligibility for the native ID/state queries; does not prove gameplay application.
+    /// Eligibility for filtered ID/state queries; does not prove gameplay application.
     pub fn query_eligible(self) -> bool {
         self.raw_flags & EXCLUDED_FLAGS == 0
     }
@@ -49,6 +49,11 @@ impl SpecialEffectsSnapshot {
         self.nodes
             .iter()
             .any(|node| node.query_eligible() && node.id == id)
+    }
+    /// Mirrors RVA 0x509150, used by target-accessor slot 0x50.
+    /// Every node counts, including excluded nodes. No gameplay application is implied.
+    pub fn contains_unfiltered_id(&self, id: i32) -> bool {
+        self.nodes.iter().any(|node| node.id == id)
     }
     /// Mirrors RVA 0x508e20, including its modulo-15 summary buckets and null PARAM case.
     pub fn contains_state(&self, state: u16) -> bool {

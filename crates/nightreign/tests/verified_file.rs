@@ -303,6 +303,10 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x201000, &[0; 976]);
     fixture.put(0x201156, &449u16.to_le_bytes());
     fixture.word(0x300000, 0x90000);
+    fixture.object(0x9c958, 0x2bf9180);
+    fixture.word(0x9c960, 0x350000);
+    fixture.word(0x350000, 0x50000);
+    fixture.word(0x50018, 0x350000);
     fixture.object(0x300018, 0x2c025f0);
     fixture.word(0x300020, 0x300000);
     fixture.object(0x300300, 0x2bf9cf0);
@@ -354,6 +358,22 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
         None
     );
     assert_eq!(queue.predicate_event_mask(), 1u64 << 44);
+    let self_target = reader.think_self_target(0x300000).unwrap().unwrap();
+    assert_eq!(self_target.character_address, Some(0x50000));
+    assert!(
+        reader
+            .think_self_effect_predicate(0x300000, 123, 8)
+            .unwrap()
+            .unwrap()
+            .present
+    );
+    assert!(
+        !reader
+            .think_self_effect_predicate(0x300000, -1, 8)
+            .unwrap()
+            .unwrap()
+            .present
+    );
     assert_eq!(state.is_local_player, Some(true));
     assert_eq!(state.attributes.health.current, 100);
     assert_eq!(state.attributes.stamina.current, -50);

@@ -19,6 +19,7 @@ pub mod parameters;
 pub mod reader;
 pub mod roots;
 pub mod think_actions;
+pub mod think_targets;
 use shikifsrs_runtime::{
     Error, Result,
     memory::AddressSpace,
@@ -367,6 +368,10 @@ fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> 
         (".?AVEzActionExecCtrl@CS@@", goal_actions::CONTROL_TABLE),
         (".?AVGoalExecAction@CS@@", goal_requests::EXEC_GOAL_TABLE),
         (".?AVCSAiFunc@CS@@", think_actions::AI_FUNC_TABLE),
+        (
+            ".?AVSelfTarget@CSAiThink@CS@@",
+            think_targets::SELF_TARGET_TABLE,
+        ),
     ] {
         if !image
             .vtables(name)?
