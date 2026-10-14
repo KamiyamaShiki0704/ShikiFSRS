@@ -1,7 +1,9 @@
 //! Exact-version Nightreign metadata and experimental copied object views.
+pub mod character_modules;
 #[cfg(windows)]
 pub mod current_tasks;
 pub mod native_tasks;
+pub mod parameter_fields;
 pub mod parameter_rows;
 pub mod parameters;
 pub mod reader;
@@ -69,6 +71,7 @@ impl<'a> NightreignFile<'a> {
         }
         validate_object_metadata(file.image())?;
         roots::validate(file.image())?;
+        validate_character_metadata(file.image())?;
         let parameters = parameters::read(file.image())?;
         Ok(Self {
             file,
@@ -101,6 +104,9 @@ impl<'a> NightreignFile<'a> {
         for range in native_evidence()? {
             module.code_address(range)?;
         }
+        for range in character_evidence()? {
+            module.code_address(range)?;
+        }
         for (_, table) in OBJECT_TYPES {
             let expected = self.file.image().read_rva(*table, 8)?;
             let pointer = u64::from_le_bytes(expected.try_into().expect("checked width"));
@@ -117,6 +123,64 @@ impl<'a> NightreignFile<'a> {
         }
         Ok(reader::NightreignReader { module, file: self })
     }
+}
+
+pub(crate) fn character_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/character-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR character RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR character RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR character extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR character extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
+}
+fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> Result<()> {
+    for (name, table) in [
+        (".?AVCSChrDataModule@CS@@", 0x2c10b88),
+        (".?AVCSChrActionFlagModule@CS@@", 0x2c0c6d0),
+        (".?AVCSChrBehaviorScriptModule@CS@@", 0x2c10068),
+        (".?AVCSChrResistModule@CS@@", 0x2c113c8),
+        (".?AVCSChrBehaviorModule@CS@@", 0x2c0fef0),
+        (".?AVCSChrBehaviorSyncModule@CS@@", 0x2c10138),
+        (".?AVCSChrPhysicsModule@CS@@", 0x2c13720),
+        (".?AVCSChrActionRequestModule@CS@@", 0x2c0c808),
+        (".?AVCSChrBehaviorDataModule@CS@@", 0x2c0f278),
+    ] {
+        if !image
+            .vtables(name)?
+            .iter()
+            .any(|v| v.table_rva == table && v.object_offset == 0 && !v.entries.is_empty())
+        {
+            return Err(Error::InvalidProfile(
+                "NR character module RTTI differs from file",
+            ));
+        }
+    }
+    for field in parameter_fields::definitions() {
+        if field.width == 0
+            || field.width > 4
+            || field
+                .offset
+                .checked_add(field.width)
+                .is_none_or(|end| end > field.packed_size)
+            || field.bit.is_some_and(|bit| bit >= 8 || field.width != 1)
+        {
+            return Err(Error::InvalidProfile("invalid pinned NR field descriptor"));
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn native_evidence() -> Result<Vec<CodeRange>> {

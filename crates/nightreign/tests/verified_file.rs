@@ -159,7 +159,57 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.dword(0x140114, 0);
     fixture.word(0x140048, 0x200);
     fixture.put(0x140200, &[1, 2, 3, 4]);
+    fixture.word(0x501b8, 0x150000);
+    fixture.word(0x150068, 0x160000);
+    fixture.object(0x160000, 0x2c13720);
+    fixture.word(0x160008, 0x50000);
+    let pose = [0.0f32, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 1.0];
+    fixture.put(
+        0x160060,
+        &pose
+            .into_iter()
+            .flat_map(f32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture.dword(0x140224, 1234);
+    fixture.put(0x140349, &[0x10]);
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
+    use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
+    assert_eq!(
+        reader
+            .character_module(0x50000, ModuleKind::Physics)
+            .unwrap()
+            .unwrap()
+            .module_address,
+        0x160000
+    );
+    assert_eq!(
+        reader
+            .physics_transform(0x50000)
+            .unwrap()
+            .unwrap()
+            .transform_point([1.0, 0.0, 0.0])
+            .unwrap(),
+        [3.0, 3.0, 4.0]
+    );
+    assert_eq!(
+        reader
+            .parameter_field(0x70000, 0, 99, parameter_fields::npc::HP, 8)
+            .unwrap(),
+        Some(1234)
+    );
+    assert_eq!(
+        reader
+            .parameter_field(0x70000, 0, 99, parameter_fields::npc::IS_GHOST, 8)
+            .unwrap(),
+        Some(true)
+    );
+    assert_eq!(
+        reader
+            .parameter_field(0x70000, 0, 100, parameter_fields::npc::HP, 8)
+            .unwrap(),
+        None
+    );
     use shikifsrs_nightreign::roots::RootKind;
     assert_eq!(reader.root(RootKind::TaskGroups).unwrap(), Some(0x10000));
     assert_eq!(reader.root(RootKind::World).unwrap(), Some(0x30000));

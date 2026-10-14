@@ -21,7 +21,7 @@
     "table_end_rva": "0x2ce0c60"
   },
   "source": "Independent static extraction from the identified executable; no live execution.",
-  "runtime_status": "experimental root discovery, native task registration/ownership, copied object views and runtime PARAM index/row access; no in-game validation",
+  "runtime_status": "experimental roots, task ownership, character modules/rigid transforms and runtime PARAM rows/typed fields; no in-game validation",
   "object_types": [
     {
       "decorated_name": ".?AVCSTaskGroupImp@CS@@",
@@ -310,5 +310,101 @@
     "status": "experimental raw index/row copying; named field schemas not provided"
   },
   "native_code_evidence_csv": "data/native-code.csv",
-  "native_code_evidence_sha256": "2bb83a0d5cb74a630a2853e833714d144762b6209a8d836d5500f6e5c7687d34"
+  "native_code_evidence_sha256": "2bb83a0d5cb74a630a2853e833714d144762b6209a8d836d5500f6e5c7687d34",
+  "character_modules": {
+    "character_bag_offset": 440,
+    "slot_count": 64,
+    "slot_stride": 8,
+    "module_owner_offset": 8,
+    "initialization_rva": "0x3de8c0",
+    "bag_constructor_rva": "0x4cd960",
+    "slot_setter_rva": "0x4cda00",
+    "module_base_constructor_rva": "0x42bf20",
+    "kinds": [
+      {
+        "kind": "Data",
+        "slot": 0,
+        "decorated_name": ".?AVCSChrDataModule@CS@@",
+        "vtable_rva": "0x2c10b88"
+      },
+      {
+        "kind": "ActionFlags",
+        "slot": 1,
+        "decorated_name": ".?AVCSChrActionFlagModule@CS@@",
+        "vtable_rva": "0x2c0c6d0"
+      },
+      {
+        "kind": "BehaviorScript",
+        "slot": 2,
+        "decorated_name": ".?AVCSChrBehaviorScriptModule@CS@@",
+        "vtable_rva": "0x2c10068"
+      },
+      {
+        "kind": "Resist",
+        "slot": 4,
+        "decorated_name": ".?AVCSChrResistModule@CS@@",
+        "vtable_rva": "0x2c113c8"
+      },
+      {
+        "kind": "Behavior",
+        "slot": 5,
+        "decorated_name": ".?AVCSChrBehaviorModule@CS@@",
+        "vtable_rva": "0x2c0fef0"
+      },
+      {
+        "kind": "BehaviorSync",
+        "slot": 6,
+        "decorated_name": ".?AVCSChrBehaviorSyncModule@CS@@",
+        "vtable_rva": "0x2c10138"
+      },
+      {
+        "kind": "Physics",
+        "slot": 13,
+        "decorated_name": ".?AVCSChrPhysicsModule@CS@@",
+        "vtable_rva": "0x2c13720"
+      },
+      {
+        "kind": "ActionRequests",
+        "slot": 16,
+        "decorated_name": ".?AVCSChrActionRequestModule@CS@@",
+        "vtable_rva": "0x2c0c808"
+      },
+      {
+        "kind": "BehaviorData",
+        "slot": 24,
+        "decorated_name": ".?AVCSChrBehaviorDataModule@CS@@",
+        "vtable_rva": "0x2c0f278"
+      }
+    ],
+    "status": "experimental copied references with owner/type checks"
+  },
+  "physics_transform": {
+    "module_slot": 13,
+    "rotation_xyzw_offset": 96,
+    "translation_offset": 112,
+    "native_matrix_builder_rva": "0x466620",
+    "matrix_convention": "row-vector; translation in row 3; native quaternion formula without normalization",
+    "coordinate_frame": "current engine frame; map/cell rebasing not reconstructed",
+    "status": "read-only and experimental; four offline static SIMD simulations agree within 1e-6"
+  },
+  "typed_parameter_fields": {
+    "descriptor_file": "data/parameter-fields.json",
+    "definition_revision": "ff7245e524329bc3eab00036723d2bd53384cedf",
+    "field_count": 41,
+    "table_count": 6,
+    "types": [
+      "u8",
+      "i8",
+      "u16",
+      "i16",
+      "u32",
+      "i32",
+      "f32",
+      "bool"
+    ],
+    "runtime_schema_verified": false,
+    "status": "experimental pinned NR definition facts; no live regulation schema acceptance"
+  },
+  "character_code_evidence_csv": "data/character-code.csv",
+  "character_code_evidence_sha256": "204f21f97744e3eb4fdcff39d4658b03d258120582c8f4fa86a2a9b422abc1a2"
 }

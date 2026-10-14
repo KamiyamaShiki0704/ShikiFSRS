@@ -1,7 +1,7 @@
 //! Experimental copied views of independently evidenced NR objects.
 //!
-//! Supply a stable address space and engine-owned root addresses. No root discovery,
-//! native calls, writes or Rust references to native objects are provided. Rechecks
+//! Supply a stable address space and engine-owned root addresses, including checked
+//! root lookup through the roots module. No writes or native object references. Rechecks
 //! reject observed changes; they do not prove quiescence, lifetime or absence of ABA.
 use shikifsrs_runtime::{Error, Result, memory::AddressSpace, profile::VerifiedModule};
 

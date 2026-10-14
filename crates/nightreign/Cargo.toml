@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 publish.workspace = true
-description = "Checked Nightreign executable and task definition metadata"
+description = "Version-checked Nightreign object, task and parameter interfaces"
 
 [dependencies]
 shikifsrs-runtime = { path = "../runtime" }

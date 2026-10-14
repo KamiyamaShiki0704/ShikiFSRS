@@ -392,3 +392,127 @@ fn param_truncated_fields_and_changed_prefix_are_rejected() {
     fixture.replacement = Some((0x2fff4, 1u32.to_le_bytes().to_vec()));
     assert!(fixture.core().parameter_rows(0x10000, 2).is_err());
 }
+
+fn physics_fixture() -> Fixture {
+    use crate::character_modules::ModuleKind;
+    let mut fixture = Fixture::default();
+    fixture.object(0x10000, PLAYER_TABLE);
+    fixture.word(0x101b8, 0x20000);
+    fixture.word(0x20068, 0x30000);
+    fixture.object(0x30000, ModuleKind::Physics.profile().1);
+    fixture.word(0x30008, 0x10000);
+    let values = [0.0f32, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 1.0];
+    fixture.put(
+        0x30060,
+        &values
+            .into_iter()
+            .flat_map(f32::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    fixture
+}
+
+#[test]
+fn module_owner_identity_and_optional_nulls_are_checked() {
+    use crate::character_modules::ModuleKind;
+    let mut fixture = physics_fixture();
+    let module = fixture
+        .core()
+        .character_module(0x10000, ModuleKind::Physics)
+        .unwrap()
+        .unwrap();
+    assert_eq!(module.module_address, 0x30000);
+    assert_eq!(ModuleKind::BehaviorData.slot(), 24);
+    fixture.word(0x30008, 0x40000);
+    assert!(
+        fixture
+            .core()
+            .character_module(0x10000, ModuleKind::Physics)
+            .is_err()
+    );
+    fixture.word(0x30008, 0x10000);
+    fixture.object(0x30000, ModuleKind::Data.profile().1);
+    assert!(
+        fixture
+            .core()
+            .character_module(0x10000, ModuleKind::Physics)
+            .is_err()
+    );
+    fixture.word(0x20068, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .character_module(0x10000, ModuleKind::Physics)
+            .unwrap(),
+        None
+    );
+    fixture.word(0x101b8, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .character_module(0x10000, ModuleKind::Physics)
+            .unwrap(),
+        None
+    );
+}
+
+#[test]
+fn physics_pose_copies_known_span_and_converts_engine_space_points() {
+    let fixture = physics_fixture();
+    let pose = fixture.core().physics_transform(0x10000).unwrap().unwrap();
+    assert_eq!(pose.rotation_xyzw, [0.0, 0.0, 0.0, 1.0]);
+    assert_eq!(pose.translation, [2.0, 3.0, 4.0, 1.0]);
+    assert_eq!(
+        pose.transform_point([1.0, -2.0, 3.0]).unwrap(),
+        [3.0, 1.0, 7.0]
+    );
+    assert_eq!(
+        fixture
+            .reads
+            .borrow()
+            .iter()
+            .filter(|entry| **entry == (0x30060, 32))
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn physics_pose_truncation_nonfinite_values_and_replacement_fail_closed() {
+    let mut fixture = physics_fixture();
+    fixture.bytes.remove(&0x3007f);
+    assert!(fixture.core().physics_transform(0x10000).is_err());
+    fixture.put(0x3007c, &1.0f32.to_le_bytes());
+    fixture.put(0x30060, &f32::NAN.to_le_bytes());
+    assert!(fixture.core().physics_transform(0x10000).is_err());
+    fixture.put(0x30060, &0.0f32.to_le_bytes());
+    fixture.reads.borrow_mut().clear();
+    fixture.replacement = Some((0x30060, vec![0; 32]));
+    assert!(fixture.core().physics_transform(0x10000).is_err());
+}
+
+#[test]
+fn quaternion_matrix_matches_statically_emulated_native_rotation() {
+    let fixture = physics_fixture();
+    let mut pose = fixture.core().physics_transform(0x10000).unwrap().unwrap();
+    let half = 0.5f32.sqrt();
+    pose.rotation_xyzw = [0.0, 0.0, half, half];
+    pose.translation = [1.0, -2.0, 3.0, 9.0];
+    let matrix = pose.rigid_matrix().unwrap();
+    let expected = [
+        [0.0, 1.0, 0.0, 0.0],
+        [-1.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [1.0, -2.0, 3.0, 1.0],
+    ];
+    for (row, wanted) in matrix.iter().zip(expected) {
+        for (actual, target) in row.iter().zip(wanted) {
+            assert!((actual - target).abs() < 1e-6);
+        }
+    }
+    let point = pose.transform_point([1.0, 0.0, 0.0]).unwrap();
+    assert!((point[0] - 1.0).abs() < 1e-6);
+    assert!((point[1] + 1.0).abs() < 1e-6);
+    pose.rotation_xyzw = [f32::INFINITY, 0.0, 0.0, 1.0];
+    assert!(pose.rigid_matrix().is_err());
+}
