@@ -587,3 +587,77 @@ fn think_self_target_and_predicate_reject_changing_associations() {
             .is_err()
     );
 }
+
+fn character_think_fixture() -> Fixture {
+    let mut fixture = self_target_fixture();
+    fixture.word(0x705a8, 0xb0000);
+    fixture.object(0xb0000, crate::character_think::COM_MANIPULATOR_TABLE);
+    fixture.word(0xb00a8, 0x70000);
+    fixture.word(0xb00c0, 0x90000);
+    fixture.object(0xb00c8, crate::character_think::COM_OWNER_TABLE);
+    fixture.word(0xb00d0, 0xb0000);
+    fixture.word(0x90000, 0xb00c8);
+    fixture
+}
+#[test]
+fn character_think_uses_distinct_enemy_and_player_manipulator_slots() {
+    let mut fixture = character_think_fixture();
+    fixture.word(0x705a0, u64::MAX); // Player's +5a0 is not the ComManipulator slot.
+    let player = fixture
+        .core()
+        .character_com_think(0x70000)
+        .unwrap()
+        .unwrap();
+    assert_eq!(player.manipulator_address, 0xb0000);
+    assert_eq!(player.owner_interface_address, 0xb00c8);
+    assert_eq!(player.think_address, 0x90000);
+    assert_eq!(player.handle_address, 0x80000);
+    fixture.object(0x70000, ENEMY_TABLE);
+    fixture.word(0x705a0, 0xb0000);
+    fixture.word(0x705a8, u64::MAX); // Enemy's +5a8 is not the selected slot.
+    assert_eq!(
+        fixture.core().character_com_think(0x70000).unwrap(),
+        Some(player)
+    );
+}
+#[test]
+fn character_think_absent_slots_are_distinct_from_unsupported_manipulators() {
+    let mut fixture = character_think_fixture();
+    fixture.word(0x705a8, 0);
+    assert_eq!(fixture.core().character_com_think(0x70000).unwrap(), None);
+    fixture.word(0x705a8, 0xb0000);
+    fixture.word(0xb00c0, 0);
+    assert_eq!(fixture.core().character_com_think(0x70000).unwrap(), None);
+    fixture.object(0xb0000, PLAYER_TABLE);
+    assert!(fixture.core().character_com_think(0x70000).is_err());
+    fixture.object(0x70000, CHARACTER_TABLE);
+    assert!(fixture.core().character_com_think(0x70000).is_err());
+}
+#[test]
+fn character_think_rejects_foreign_owners_interfaces_and_handles() {
+    for (address, value) in [
+        (0xb00a8, 0x70008u64),
+        (0xb00d0, 0xb0008),
+        (0x90000, 0xb00d0),
+        (0xa0008, 0x90008),
+        (0x80000, 0x70008),
+        (0x70018, 0x80008),
+    ] {
+        let mut fixture = character_think_fixture();
+        fixture.word(address, value);
+        assert!(fixture.core().character_com_think(0x70000).is_err());
+    }
+    let mut fixture = character_think_fixture();
+    fixture.object(0xb00c8, PLAYER_TABLE);
+    assert!(fixture.core().character_com_think(0x70000).is_err());
+}
+#[test]
+fn character_think_rechecks_all_copied_association_links() {
+    for address in [
+        0x705a8, 0xb00a8, 0xb00c0, 0xb00d0, 0x90000, 0x90008, 0x80000,
+    ] {
+        let mut fixture = character_think_fixture();
+        fixture.replacement = Some((address, 0u64.to_le_bytes().to_vec()));
+        assert!(fixture.core().character_com_think(0x70000).is_err());
+    }
+}

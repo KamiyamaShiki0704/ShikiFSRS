@@ -302,11 +302,18 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.word(0x200048, 0x1000);
     fixture.put(0x201000, &[0; 976]);
     fixture.put(0x201156, &449u16.to_le_bytes());
-    fixture.word(0x300000, 0x90000);
-    fixture.object(0x9c958, 0x2bf9180);
-    fixture.word(0x9c960, 0x350000);
+    fixture.word(0x300000, 0x370000);
+    fixture.object(0x37c958, 0x2bf9180);
+    fixture.word(0x37c960, 0x350000);
     fixture.word(0x350000, 0x50000);
     fixture.word(0x50018, 0x350000);
+    fixture.word(0x505a8, 0x360000);
+    fixture.object(0x360000, 0x2c09558);
+    fixture.word(0x3600a8, 0x50000);
+    fixture.word(0x3600c0, 0x370000);
+    fixture.object(0x3600c8, 0x2bf9860);
+    fixture.word(0x3600d0, 0x360000);
+    fixture.word(0x370000, 0x3600c8);
     fixture.object(0x300018, 0x2c025f0);
     fixture.word(0x300020, 0x300000);
     fixture.object(0x300300, 0x2bf9cf0);
@@ -318,19 +325,19 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.word(0x3000a8, 0x310000);
     fixture.object(0x310000, 0x2c03e48);
     fixture.dword(0x300060, 42.75f32.to_bits());
-    fixture.word(0x90008, 0x320000);
+    fixture.word(0x370008, 0x320000);
     fixture.object(0x320000, 0x2c016b0);
-    fixture.word(0x320008, 0x90000);
-    fixture.word(0x9db70, 0x90000);
-    fixture.word(0x9db78, 0xa0000);
-    fixture.word(0x9db80, 0x330000);
-    fixture.word(0x9db88, 1);
+    fixture.word(0x320008, 0x370000);
+    fixture.word(0x37db70, 0x370000);
+    fixture.word(0x37db78, 0xa0000);
+    fixture.word(0x37db80, 0x330000);
+    fixture.word(0x37db88, 1);
     fixture.word(0x330000, 0x340000);
     fixture.word(0x330008, 0x340000);
     fixture.put(0x340000, &[0; 40]);
     fixture.word(0x340000, 0x330000);
     fixture.word(0x340008, 0x330000);
-    fixture.word(0x340010, 0x90000);
+    fixture.word(0x340010, 0x370000);
     fixture.dword(0x340018, 123);
     fixture.dword(0x34001c, 42);
     fixture.put(0x340020, &[1]);
@@ -360,6 +367,10 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(queue.predicate_event_mask(), 1u64 << 44);
     let self_target = reader.think_self_target(0x300000).unwrap().unwrap();
     assert_eq!(self_target.character_address, Some(0x50000));
+    let reverse = reader.character_com_think(0x50000).unwrap().unwrap();
+    assert_eq!(reverse.think_address, self_target.think_address);
+    assert_eq!(reverse.handle_address, self_target.handle_address);
+    assert_eq!(reverse.owner_interface_address, 0x3600c8);
     assert!(
         reader
             .think_self_effect_predicate(0x300000, 123, 8)

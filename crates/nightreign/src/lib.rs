@@ -4,6 +4,7 @@ pub mod character_effects;
 pub mod character_modules;
 pub mod character_operations;
 pub mod character_state;
+pub mod character_think;
 #[cfg(windows)]
 pub mod current_tasks;
 pub mod effect_addition;
@@ -368,6 +369,11 @@ fn validate_character_metadata(image: &shikifsrs_runtime::pe::FileImage<'_>) -> 
         (".?AVEzActionExecCtrl@CS@@", goal_actions::CONTROL_TABLE),
         (".?AVGoalExecAction@CS@@", goal_requests::EXEC_GOAL_TABLE),
         (".?AVCSAiFunc@CS@@", think_actions::AI_FUNC_TABLE),
+        (
+            ".?AVComManipulator@CS@@",
+            character_think::COM_MANIPULATOR_TABLE,
+        ),
+        (".?AVCSComThinkOwner@CS@@", character_think::COM_OWNER_TABLE),
         (
             ".?AVSelfTarget@CSAiThink@CS@@",
             think_targets::SELF_TARGET_TABLE,
