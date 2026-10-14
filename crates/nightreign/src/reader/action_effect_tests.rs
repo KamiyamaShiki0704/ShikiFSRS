@@ -844,3 +844,176 @@ fn goal_children_recheck_maps_slots_ids_and_context_links() {
         assert!(fixture.core().goal_children(0x200000, 3).is_err());
     }
 }
+
+fn goal_tree_fixture() -> Fixture {
+    let mut fixture = goal_children_fixture();
+    fixture.word(0x200008, 0);
+    for child in [0x2003d0, 0x2007a0] {
+        for offset in [0x40, 0x48, 0x50, 0x58] {
+            fixture.word(child + offset, 0);
+        }
+    }
+    fixture
+}
+#[test]
+fn goal_tree_preserves_preorder_depths_parent_links_and_null_child_slots() {
+    let fixture = goal_tree_fixture();
+    let tree = fixture
+        .core()
+        .character_goal_tree(0x70000, crate::goal_trees::GoalTreeLimits::default())
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        tree.nodes
+            .iter()
+            .map(|n| n.pool_slot_index)
+            .collect::<Vec<_>>(),
+        [0, 1, 2]
+    );
+    assert_eq!(
+        tree.nodes.iter().map(|n| n.depth).collect::<Vec<_>>(),
+        [0, 1, 1]
+    );
+    assert_eq!(tree.nodes[1].parent_context_address, 0x200000);
+    assert_eq!(tree.nodes[0].children.slots[1].context, None);
+    assert_eq!(tree.nodes[2].raw_goal_id, 102);
+}
+#[test]
+fn goal_tree_enforces_all_bounds_and_distinguishes_empty_root_from_absent_think() {
+    use crate::goal_trees::GoalTreeLimits;
+    let mut fixture = goal_tree_fixture();
+    for limits in [
+        GoalTreeLimits {
+            max_nodes: 2,
+            ..Default::default()
+        },
+        GoalTreeLimits {
+            max_depth: 0,
+            ..Default::default()
+        },
+        GoalTreeLimits {
+            max_child_slots: 2,
+            ..Default::default()
+        },
+        GoalTreeLimits {
+            max_nodes: 33,
+            ..Default::default()
+        },
+        GoalTreeLimits {
+            max_depth: 32,
+            ..Default::default()
+        },
+    ] {
+        assert!(fixture.core().character_goal_tree(0x70000, limits).is_err());
+    }
+    fixture.word(0x90070, 0);
+    assert!(
+        fixture
+            .core()
+            .character_goal_tree(0x70000, GoalTreeLimits::default())
+            .unwrap()
+            .unwrap()
+            .nodes
+            .is_empty()
+    );
+    fixture.word(0xb00c0, 0);
+    assert_eq!(
+        fixture
+            .core()
+            .character_goal_tree(0x70000, GoalTreeLimits::default())
+            .unwrap(),
+        None
+    );
+}
+#[test]
+fn goal_tree_rejects_cycles_shared_nodes_and_foreign_pool_slots() {
+    use crate::goal_trees::GoalTreeLimits;
+    let mut shared = goal_tree_fixture();
+    shared.word(0x520008, 0x2003d0);
+    assert!(
+        shared
+            .core()
+            .character_goal_tree(0x70000, GoalTreeLimits::default())
+            .is_err()
+    );
+    let mut cycle = goal_tree_fixture();
+    cycle.word(0x200008, 0x2003d0);
+    cycle.word(0x200410, 0x600000);
+    cycle.word(0x200418, 1);
+    cycle.word(0x200420, 0);
+    cycle.word(0x200428, 1);
+    cycle.word(0x600000, 0x610000);
+    cycle.word(0x610000, 0x200000);
+    assert!(
+        cycle
+            .core()
+            .character_goal_tree(0x70000, GoalTreeLimits::default())
+            .is_err()
+    );
+    let mut foreign = goal_tree_fixture();
+    for (address, byte) in goal_fixture().bytes {
+        foreign.bytes.insert(0x210000 + address - 0x10000, byte);
+    }
+    foreign.word(0x210020, 0x210000);
+    foreign.word(0x210008, 0x200000);
+    foreign.dword(0x2100a0, 123);
+    foreign.word(0x510008, 0x210000);
+    assert!(
+        foreign
+            .core()
+            .character_goal_tree(0x70000, GoalTreeLimits::default())
+            .is_err()
+    );
+}
+#[test]
+fn goal_tree_checks_nested_depth_and_parent_ownership() {
+    use crate::goal_trees::GoalTreeLimits;
+    let mut fixture = goal_tree_fixture();
+    fixture.word(0x520008, 0);
+    fixture.word(0x2007a8, 0x2003d0);
+    fixture.word(0x200410, 0x600000);
+    fixture.word(0x200418, 1);
+    fixture.word(0x200420, 0);
+    fixture.word(0x200428, 1);
+    fixture.word(0x600000, 0x610000);
+    fixture.word(0x610000, 0x2007a0);
+    assert!(
+        fixture
+            .core()
+            .character_goal_tree(
+                0x70000,
+                GoalTreeLimits {
+                    max_depth: 1,
+                    ..Default::default()
+                }
+            )
+            .is_err()
+    );
+    let tree = fixture
+        .core()
+        .character_goal_tree(0x70000, GoalTreeLimits::default())
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        tree.nodes.iter().map(|n| n.depth).collect::<Vec<_>>(),
+        [0, 1, 2]
+    );
+    fixture.word(0x2007a8, 0x200000);
+    assert!(fixture.core().goal_children(0x2003d0, 8).is_err());
+}
+#[test]
+fn goal_tree_rechecks_root_parent_link_and_child_goal_id() {
+    for (address, bytes) in [
+        (0x200008, 0x2003d0u64.to_le_bytes().to_vec()),
+        (0x200470, 999u32.to_le_bytes().to_vec()),
+    ] {
+        let mut fixture = goal_tree_fixture();
+        fixture.replacement = Some((address, bytes));
+        assert!(
+            fixture
+                .core()
+                .character_goal_tree(0x70000, crate::goal_trees::GoalTreeLimits::default())
+                .is_err()
+        );
+    }
+}

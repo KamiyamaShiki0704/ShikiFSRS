@@ -8,7 +8,8 @@ use shikifsrs_runtime::{Error, Result, memory::AddressSpace};
 pub struct GoalChildContext {
     pub control: GoalActionState,
     pub raw_goal_id: i32,
-    /// Context +8 is copied without assigning a lifetime or parent-link guarantee.
+    /// Context +8 is the parent installed by AddSubGoal; checked against this container.
+    /// Copying the link does not establish a lifetime or engine phase.
     pub raw_context_link_08: u64,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +94,9 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
                 }
                 let goal_id = self.u32(child, 0xa0)?;
                 let link = self.u64(child, 8)?;
+                if link != context {
+                    return Err(Error::InvalidProfile("NR Goal child parent link differs"));
+                }
                 Some(GoalChildContext {
                     control,
                     raw_goal_id: goal_id as i32,

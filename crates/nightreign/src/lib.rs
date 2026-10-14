@@ -14,6 +14,7 @@ pub mod goal_actions;
 pub mod goal_children;
 pub mod goal_requests;
 pub mod goal_roots;
+pub mod goal_trees;
 pub mod native_tasks;
 pub mod parameter_fields;
 pub mod parameter_rows;

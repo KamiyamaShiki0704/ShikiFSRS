@@ -303,6 +303,7 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.put(0x201000, &[0; 976]);
     fixture.put(0x201156, &449u16.to_le_bytes());
     fixture.word(0x300000, 0x370000);
+    fixture.word(0x300008, 0);
     fixture.dword(0x3000a0, 100);
     fixture.word(0x300040, 0x380000);
     fixture.word(0x300048, 2);
@@ -317,6 +318,9 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.object(0x3003e8, 0x2c025f0);
     fixture.word(0x3003f0, 0x3003d0);
     fixture.dword(0x300470, 101);
+    for offset in [0x40, 0x48, 0x50, 0x58] {
+        fixture.word(0x3003d0 + offset, 0);
+    }
     fixture.object(0x3006d0, 0x2bf9cf0);
     fixture.word(0x3006d8, 0);
     fixture.put(0x3006e0, &[0; 13]);
@@ -405,6 +409,16 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
         .unwrap();
     assert_eq!(children.first_context().unwrap().raw_goal_id, 101);
     assert_eq!(children.slots[1].context, None);
+    let tree = reader
+        .character_goal_tree(
+            0x50000,
+            shikifsrs_nightreign::goal_trees::GoalTreeLimits::default(),
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(tree.nodes.len(), 2);
+    assert_eq!(tree.nodes[1].pool_slot_index, 1);
+    assert_eq!(tree.nodes[1].parent_context_address, 0x300000);
     assert!(
         reader
             .think_self_effect_predicate(0x300000, 123, 8)
