@@ -1,8 +1,8 @@
 //! Experimental original default effect addition, using only value arguments.
 //! Native callbacks, eligibility, allocation and notifications remain engine responsibilities.
 use crate::{
-    NightreignFile, character_effects::SpecialEffectsSnapshot, parameter_fields::effect,
-    reader::NightreignReader, roots::RootKind,
+    NightreignFile, character_effects::SpecialEffectsSnapshot, effect_tiers::EffectIdPlan,
+    parameter_fields::effect, reader::NightreignReader, roots::RootKind,
 };
 use shikifsrs_runtime::{Error, Result, memory::AddressSpace, profile::CodeRange};
 const ADD_DEFAULT: CodeRange = CodeRange {
@@ -31,6 +31,9 @@ pub unsafe trait EffectAdditionBackend: AddressSpace {
 pub struct EffectAdditionReceipt {
     pub requested_id: i32,
     pub parameter_address: u64,
+    /// Copied prediction checked immediately before invocation, not an executed-ID claim.
+    pub id_plan: EffectIdPlan,
+    pub effective_parameter_address: u64,
     pub before: SpecialEffectsSnapshot,
     /// Native acceptance result; true does not imply a persistent, eligible or unique node.
     pub native_result: Result<bool>,
@@ -56,8 +59,9 @@ impl<'f> NightreignFile<'f> {
 }
 impl<B: EffectAdditionBackend> EffectAddition<'_, '_, B> {
     /// Default variant-zero PARAM, default native descriptors and force flag zero.
-    /// Categories 204/206 with nonzero priority are excluded because native ID tier remapping
-    /// can select another row. No customized source, descriptors or force options are exposed.
+    /// Checks a fresh native tier prediction and its effective PARAM. The original requested
+    /// ID is passed to the native wrapper so it performs its own remapping exactly once.
+    /// No customized source, descriptors or force options are exposed.
     /// # Safety
     /// Caller supplies an offline exclusive engine mutation phase and stable full native
     /// object graph, PARAM rows, heap registry, callback and notification subsystems. All
@@ -103,7 +107,28 @@ impl<B: EffectAdditionBackend> EffectAddition<'_, '_, B> {
             .ok_or(Error::NativeOperationRejected(
                 "NR requested effect PARAM is absent",
             ))?;
-        check_default_row(&row.bytes)?;
+        let id_plan = self.reader.effect_id_plan(character, id, limits)?;
+        if id_plan.effective_id <= 0 {
+            return Err(Error::NativeOperationRejected(
+                "NR effect tier is exhausted",
+            ));
+        }
+        if id_plan.requested_parameter_address != row.row.address {
+            return Err(Error::InvalidProfile("NR requested tier PARAM changed"));
+        }
+        let effective = self
+            .reader
+            .copy_parameter_row(
+                root,
+                "SpEffectParam",
+                0,
+                id_plan.effective_id as u32,
+                row.bytes.len(),
+                limits.parameter_rows,
+            )?
+            .ok_or(Error::NativeOperationRejected(
+                "NR effective effect PARAM is absent",
+            ))?;
         let entry = self.reader.module.code_address(ADD_DEFAULT)?;
         self.check_defaults()?;
         if self.reader.root(RootKind::Parameters)? != Some(root)
@@ -119,6 +144,15 @@ impl<B: EffectAdditionBackend> EffectAddition<'_, '_, B> {
                 row.bytes.len(),
                 limits.parameter_rows,
             )? != Some(row.clone())
+            || self.reader.copy_parameter_row(
+                root,
+                "SpEffectParam",
+                0,
+                id_plan.effective_id as u32,
+                effective.bytes.len(),
+                limits.parameter_rows,
+            )? != Some(effective.clone())
+            || self.reader.effect_id_plan(character, id, limits)? != id_plan
             || self.reader.special_effects(character, limits.nodes)? != Some(before.clone())
         {
             return Err(Error::InvalidProfile("NR default effect preflight changed"));
@@ -149,6 +183,8 @@ impl<B: EffectAdditionBackend> EffectAddition<'_, '_, B> {
         Ok(EffectAdditionReceipt {
             requested_id: id,
             parameter_address: row.row.address,
+            id_plan,
+            effective_parameter_address: effective.row.address,
             before,
             native_result,
             after,
@@ -180,16 +216,6 @@ impl<B: EffectAdditionBackend> EffectAddition<'_, '_, B> {
         Ok(())
     }
 }
-fn check_default_row(bytes: &[u8]) -> Result<()> {
-    let category = effect::SP_CATEGORY.read_row_bytes(bytes)?;
-    let priority = effect::CATEGORY_PRIORITY.read_row_bytes(bytes)?;
-    if matches!(category, 204 | 206) && priority != 0 {
-        return Err(Error::InvalidProfile(
-            "NR native effect tier remapping is outside the default supported subset",
-        ));
-    }
-    Ok(())
-}
 #[cfg(windows)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CurrentEffectAdditionBackend;
@@ -208,23 +234,5 @@ unsafe impl EffectAdditionBackend for CurrentEffectAdditionBackend {
         let function: Add = unsafe { std::mem::transmute(entry as usize) };
         // SAFETY: Caller supplies exclusive live character and full native subsystems; flag zero.
         Ok(unsafe { function(character as *mut std::ffi::c_void, id, 0) } != 0)
-    }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn tiered_categories_need_mapping_but_zero_priority_keeps_original_id() {
-        let mut row = vec![0; 976];
-        for category in [204i16, 206] {
-            row[318..320].copy_from_slice(&category.to_le_bytes());
-            row[320] = 0;
-            assert!(check_default_row(&row).is_ok());
-            row[320] = 1;
-            assert!(check_default_row(&row).is_err());
-        }
-        row[318..320].copy_from_slice(&205i16.to_le_bytes());
-        assert!(check_default_row(&row).is_ok());
-        assert!(check_default_row(&row[..320]).is_err());
     }
 }
