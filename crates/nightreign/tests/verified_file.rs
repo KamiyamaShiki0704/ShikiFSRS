@@ -15,6 +15,9 @@ use effect_tier_fixture::check_effect_tier_plans;
 #[path = "fixtures/goal_requests.rs"]
 mod goal_request_fixture;
 use goal_request_fixture::check_goal_request_receipts;
+#[path = "fixtures/action_id_requests.rs"]
+mod action_id_request_fixture;
+use action_id_request_fixture::check_action_id_receipts;
 
 struct MappedFixture<'a> {
     image: &'a FileImage<'a>,
@@ -460,6 +463,7 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     assert_eq!(goal_state.raw_flag, 1);
     assert_eq!(goal_state.raw_word_14, -1);
     check_goal_request_receipts(&file, &fixture);
+    check_action_id_receipts(&file, &fixture);
     let queue = reader.think_action_queue(0x300000, 8).unwrap().unwrap();
     assert_eq!(queue.interface_address, 0x320000);
     assert_eq!(queue.events[0].raw_key_b, 42);
