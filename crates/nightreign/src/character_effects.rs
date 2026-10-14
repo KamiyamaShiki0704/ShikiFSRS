@@ -1,4 +1,4 @@
-//! Experimental bounded SpecialEffect node copies; no native add/remove operations.
+//! Experimental bounded SpecialEffect node copies. Reads never mutate or free nodes.
 use crate::reader::{CHARACTER_TABLE, ENEMY_TABLE, NightreignReader, PLAYER_TABLE, ReaderCore};
 use shikifsrs_runtime::{Error, Result, memory::AddressSpace};
 use std::collections::BTreeSet;
@@ -9,6 +9,7 @@ const EXCLUDED_FLAGS: u32 = 0x800c0003;
 pub struct SpecialEffectNode {
     pub address: u64,
     pub parameter_address: u64,
+    pub previous_address: u64,
     pub id: i32,
     pub raw_flags: u32,
     /// Native PARAM stateInfo (+0x156), copied only for query-eligible nodes.
@@ -24,6 +25,7 @@ impl SpecialEffectNode {
 pub struct SpecialEffectsSnapshot {
     pub character_address: u64,
     pub effect_address: u64,
+    pub owner_address: u64,
     pub native_state_summary: u64,
     pub nodes: Vec<SpecialEffectNode>,
 }
@@ -68,6 +70,7 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
         }
         self.check_type(effect, &[EFFECT_TABLE])?;
         let head = self.u64(effect, 8)?;
+        let owner = self.u64(effect, 0x10)?;
         let summary = self.u64(effect, 0x28)?;
         let mut next = head;
         let mut seen = BTreeSet::new();
@@ -99,6 +102,7 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
             nodes.push(SpecialEffectNode {
                 address,
                 parameter_address: parameter,
+                previous_address: u64::from_le_bytes(raw[0x40..0x48].try_into().expect("node")),
                 id,
                 raw_flags: flags,
                 state_info,
@@ -125,6 +129,7 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
             }
         }
         self.unchanged_u64(effect, 8, head)?;
+        self.unchanged_u64(effect, 0x10, owner)?;
         self.unchanged_u64(effect, 0x28, summary)?;
         self.check_type(effect, &[EFFECT_TABLE])?;
         self.unchanged_u64(character, 0x190, effect)?;
@@ -132,6 +137,7 @@ impl<M: AddressSpace> ReaderCore<'_, M> {
         Ok(Some(SpecialEffectsSnapshot {
             character_address: character,
             effect_address: effect,
+            owner_address: owner,
             native_state_summary: summary,
             nodes,
         }))

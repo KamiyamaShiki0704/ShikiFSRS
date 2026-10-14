@@ -6,6 +6,7 @@ pub mod character_operations;
 pub mod character_state;
 #[cfg(windows)]
 pub mod current_tasks;
+pub mod effect_operations;
 pub mod native_tasks;
 pub mod parameter_fields;
 pub mod parameter_rows;
@@ -118,6 +119,9 @@ impl<'a> NightreignFile<'a> {
         for range in action_effect_evidence()? {
             module.code_address(range)?;
         }
+        for range in effect_mutation_evidence()? {
+            module.code_address(range)?;
+        }
         for (_, table) in OBJECT_TYPES {
             let expected = self.file.image().read_rva(*table, 8)?;
             let pointer = u64::from_le_bytes(expected.try_into().expect("checked width"));
@@ -175,6 +179,27 @@ pub(crate) fn action_effect_evidence() -> Result<Vec<CodeRange>> {
                 .ok_or(Error::InvalidProfile("missing NR action/effect extent"))?
                 .parse::<usize>()
                 .map_err(|_| Error::InvalidProfile("invalid NR action/effect extent"))?;
+            Ok(CodeRange { rva, length })
+        })
+        .collect()
+}
+pub(crate) fn effect_mutation_evidence() -> Result<Vec<CodeRange>> {
+    include_str!("../data/effect-removal-code.csv")
+        .lines()
+        .map(|line| {
+            let mut fields = line.split(',');
+            let rva = u32::from_str_radix(
+                fields
+                    .next()
+                    .ok_or(Error::InvalidProfile("missing NR effect mutation RVA"))?,
+                16,
+            )
+            .map_err(|_| Error::InvalidProfile("invalid NR effect mutation RVA"))?;
+            let length = fields
+                .next()
+                .ok_or(Error::InvalidProfile("missing NR effect mutation extent"))?
+                .parse::<usize>()
+                .map_err(|_| Error::InvalidProfile("invalid NR effect mutation extent"))?;
             Ok(CodeRange { rva, length })
         })
         .collect()

@@ -3,6 +3,9 @@ use shikifsrs_nightreign::{NightreignFile, reader::CharacterKind};
 use shikifsrs_runtime::{Error, Result, memory::AddressSpace, pe::FileImage};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+#[path = "fixtures/effect_removal.rs"]
+mod effect_removal_fixture;
+use effect_removal_fixture::check_effect_removal_receipts;
 
 struct MappedFixture<'a> {
     image: &'a FileImage<'a>,
@@ -45,8 +48,20 @@ impl AddressSpace for MappedFixture<'_> {
             output.copy_from_slice(bytes);
             if output.len() == 8
                 && [
-                    0x2cdf868, 0x2ce3fe8, 0x2ce4038, 0x2c1b930, 0x2c15d70, 0x2c307f8, 0x2c18120,
-                    0x2c0ba90, 0x2cb1e08, 0x2cade48, 0x2bda590,
+                    0x2cdf868,
+                    0x2ce3fe8,
+                    0x2ce4038,
+                    0x2c1b930,
+                    0x2c15d70,
+                    0x2c307f8,
+                    0x2c18120,
+                    0x2c0ba90,
+                    0x2cb1e08,
+                    0x2cade48,
+                    0x2bda590,
+                    0x2c0ba90 + 0x510,
+                    0x2c18120 + 0x510,
+                    0x2c307f8 + 0x510,
                 ]
                 .contains(&rva)
             {
@@ -250,11 +265,14 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     fixture.word(0x50190, 0x190000);
     fixture.object(0x190000, 0x2c1b5d8);
     fixture.word(0x190008, 0x1a0000);
+    fixture.word(0x190010, 0x50000);
     fixture.word(0x190028, u64::MAX);
     fixture.put(0x1a0000, &[0; 0x6c]);
     fixture.word(0x1a0000, 0x1b0000);
     fixture.dword(0x1a0008, 123);
     fixture.put(0x1b0156, &449u16.to_le_bytes());
+    fixture.put(0x1b013e, &0i16.to_le_bytes());
+    fixture.put(0x1b031c, &1i16.to_le_bytes());
     let reader = file.bind_reader(&fixture, fixture.base).unwrap();
     use shikifsrs_nightreign::{character_modules::ModuleKind, parameter_fields};
     let state = reader.character_state(0x50000).unwrap().unwrap();
@@ -266,6 +284,7 @@ fn exact_file_catalog_and_relocated_fixture_cover_all_four_read_interfaces() {
     let effects = reader.special_effects(0x50000, 8).unwrap().unwrap();
     assert!(effects.contains_id(123));
     assert!(effects.contains_state(449));
+    check_effect_removal_receipts(&file, &fixture);
     let schema = reader.parameter_schema(0x70000, "NpcParam", 0, 8).unwrap();
     assert_eq!(schema.data_version, 9);
     assert!(!schema.has_row_stride_evidence());

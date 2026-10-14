@@ -85,6 +85,7 @@ fn effect_fixture() -> Fixture {
     fixture.word(0x10190, 0x20000);
     fixture.object(0x20000, crate::character_effects::EFFECT_TABLE);
     fixture.word(0x20008, 0x30000);
+    fixture.word(0x20010, 0x10000);
     fixture.word(0x20028, u64::MAX);
     for (address, next, param, id, flags, state) in [
         (0x30000, 0x40000, 0x60000, 101, 0, 449u16),
@@ -157,4 +158,39 @@ fn strict_schema_policy_rejects_partial_index_and_changing_type() {
     fixture.reads.borrow_mut().clear();
     fixture.replacement = Some((0x3000c, vec![0; 32]));
     assert!(fixture.core().parameter_schema(&rows).is_err());
+}
+
+#[test]
+fn removal_preflight_checks_owner_and_previous_links_before_calling() {
+    let mut fixture = effect_fixture();
+    fixture.put(0x6013e, &1i16.to_le_bytes());
+    fixture.put(0x6031c, &7i16.to_le_bytes());
+    let snapshot = fixture.core().special_effects(0x10000, 3).unwrap().unwrap();
+    assert!(fixture.core().check_effect_removal(&snapshot, 101).is_err()); // Invalid previous links.
+    fixture.word(0x40040, 0x30000);
+    fixture.word(0x50040, 0x40000);
+    fixture.word(0x40000, 0); // Null PARAM is valid for native removal; invalid excluded pointer is not.
+    fixture.put(0x6013e, &1i16.to_le_bytes());
+    fixture.put(0x6031c, &7i16.to_le_bytes());
+    let snapshot = fixture.core().special_effects(0x10000, 3).unwrap().unwrap();
+    assert!(fixture.core().check_effect_removal(&snapshot, 101).unwrap());
+    assert!(!fixture.core().check_effect_removal(&snapshot, 102).unwrap());
+    let mut wrong = snapshot;
+    wrong.owner_address = 0;
+    assert!(fixture.core().check_effect_removal(&wrong, 101).is_err());
+}
+#[test]
+fn removal_preflight_reads_param_dependencies_on_excluded_matches() {
+    let mut fixture = effect_fixture();
+    fixture.word(0x40040, 0x30000);
+    fixture.word(0x50040, 0x40000);
+    fixture.word(0x40000, 0x70000);
+    fixture.put(0x6013e, &0i16.to_le_bytes());
+    fixture.put(0x6031c, &0i16.to_le_bytes());
+    let snapshot = fixture.core().special_effects(0x10000, 3).unwrap().unwrap();
+    assert!(fixture.core().check_effect_removal(&snapshot, 102).is_err());
+    fixture.put(0x7013e, &0i16.to_le_bytes());
+    fixture.put(0x70156, &3u16.to_le_bytes());
+    fixture.put(0x7031c, &9i16.to_le_bytes());
+    assert!(fixture.core().check_effect_removal(&snapshot, 102).unwrap());
 }
